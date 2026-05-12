@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>寵物日誌</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #5B9BD5;
+      --primary-dark: #4A87C0;
+      --primary-light: #EBF4FD;
+      --accent: #FF8C5A;
+      --success: #4CAF82;
+      --warning: #F5A623;
+      --danger: #E55050;
+      --text-primary: #2D3748;
+      --text-secondary: #718096;
+      --border: #E2E8F0;
+      --bg: #F0F4F8;
+      --card: #FFFFFF;
+      --shadow: 0 2px 8px rgba(0,0,0,0.07);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'PingFang TC', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #5B9BD5, #7BB3E0);
+      color: white;
+      padding: 0 20px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(91,155,213,0.35);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px; }
+    .btn-add-pet {
+      background: rgba(255,255,255,0.92);
+      color: var(--primary);
+      border: none;
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .btn-add-pet:hover { background: white; transform: translateY(-1px); }
+
+    /* ── Pet Tabs ── */
+    .pet-tabs {
+      background: white;
+      padding: 10px 16px;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border);
+      scrollbar-width: none;
+    }
+    .pet-tabs::-webkit-scrollbar { display: none; }
+    .pet-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: 20px;
+      border: 2px solid var(--border);
+      background: white;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    .pet-tab:hover { border-color: var(--primary); color: var(--primary); }
+    .pet-tab.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 700; }
+    .pet-tab-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      object-fit: cover; background: var(--bg);
+      display: flex; align-items: center; justify-content: center; font-size: 13px;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .pet-tab-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+    /* ── Main ── */
+    .main { max-width: 720px; margin: 0 auto; padding: 16px 16px 100px; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 64px 20px; color: var(--text-secondary); }
+    .empty-state .icon { font-size: 72px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 20px; margin-bottom: 8px; color: var(--text-primary); }
+    .empty-state p { font-size: 14px; line-height: 1.6; }
+
+    /* ── Pet Profile Card ── */
+    .pet-profile {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      display: flex;
+      gap: 16px;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .pet-avatar {
+      width: 84px; height: 84px; border-radius: 50%;
+      border: 3px solid var(--primary-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px; background: var(--primary-light);
+      flex-shrink: 0; overflow: hidden;
+    }
+    .pet-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .pet-info { flex: 1; min-width: 0; }
+    .pet-name { font-size: 22px; font-weight: 800; margin-bottom: 3px; }
+    .pet-sub { color: var(--text-secondary); font-size: 13px; margin-bottom: 8px; }
+    .pet-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pet-badge {
+      background: var(--bg); padding: 4px 10px;
+      border-radius: 12px; font-size: 12px; color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .pet-actions { position: absolute; top: 14px; right: 14px; display: flex; gap: 6px; }
+    .btn-icon {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 1px solid var(--border); background: white;
+      cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-size: 14px; transition: all 0.2s;
+    }
+    .btn-icon:hover { background: var(--bg); }
+    .btn-icon.danger:hover { background: #FEE2E2; border-color: var(--danger); }
+
+    /* ── Vaccine Reminder Banner ── */
+    .reminder-banner {
+      background: linear-gradient(135deg, #FFFBEB, #FEF3C7);
+      border: 1.5px solid #F5C842;
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .reminder-banner .bell { font-size: 22px; flex-shrink: 0; }
+    .reminder-banner h4 { font-size: 14px; font-weight: 700; color: #78540A; margin-bottom: 4px; }
+    .reminder-item { font-size: 13px; color: #92650A; margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+    .reminder-item.overdue { color: var(--danger); font-weight: 600; }
+    .badge-overdue, .badge-soon {
+      display: inline-block; padding: 2px 7px; border-radius: 10px;
+      font-size: 11px; font-weight: 700;
+    }
+    .badge-overdue { background: #FEE2E2; color: var(--danger); }
+    .badge-soon { background: #FEF3C7; color: #92650A; }
+
+    /* ── Filter Tabs ── */
+    .filter-tabs {
+      display: flex; gap: 8px; overflow-x: auto;
+      margin-bottom: 14px; scrollbar-width: none; padding-bottom: 2px;
+    }
+    .filter-tabs::-webkit-scrollbar { display: none; }
+    .filter-tab {
+      padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: white; cursor: pointer; font-size: 13px; white-space: nowrap;
+      transition: all 0.2s; color: var(--text-secondary);
+    }
+    .filter-tab:hover { border-color: var(--primary); }
+    .filter-tab.active { font-weight: 700; }
+    .filter-tab[data-type="all"].active    { background: var(--text-primary); color: white; border-color: var(--text-primary); }
+    .filter-tab[data-type="weight"].active  { background: #EFF6FF; color: #2563EB; border-color: #2563EB; }
+    .filter-tab[data-type="vaccine"].active { background: #F0FDF4; color: #16A34A; border-color: #16A34A; }
+    .filter-tab[data-type="medical"].active { background: #FFF1F2; color: #E11D48; border-color: #E11D48; }
+    .filter-tab[data-type="grooming"].active{ background: #FAF5FF; color: #7C3AED; border-color: #7C3AED; }
+    .filter-tab[data-type="other"].active   { background: #FFFBEB; color: #D97706; border-color: #D97706; }
+
+    /* ── Weight Chart ── */
+    .chart-card {
+      background: var(--card); border-radius: var(--radius);
+      padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 14px;
+    }
+    .chart-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+    .chart-container { position: relative; height: 200px; }
+
+    /* ── Events ── */
+    .section-label {
+      font-size: 12px; font-weight: 700; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;
+    }
+    .events-list { display: flex; flex-direction: column; gap: 10px; }
+    .event-card {
+      background: var(--card); border-radius: var(--radius);
+      padding: 14px 14px; box-shadow: var(--shadow);
+      display: flex; gap: 12px; align-items: flex-start;
+      transition: all 0.2s;
+    }
+    .event-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+    .event-icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .event-icon.weight  { background: #EFF6FF; }
+    .event-icon.vaccine { background: #F0FDF4; }
+    .event-icon.medical { background: #FFF1F2; }
+    .event-icon.grooming{ background: #FAF5FF; }
+    .event-icon.other   { background: #FFFBEB; }
+    .event-body { flex: 1; min-width: 0; }
+    .event-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 3px; }
+    .event-type-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .event-type-label.weight  { color: #2563EB; }
+    .event-type-label.vaccine { color: #16A34A; }
+    .event-type-label.medical { color: #E11D48; }
+    .event-type-label.grooming{ color: #7C3AED; }
+    .event-type-label.other   { color: #D97706; }
+    .event-date { font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
+    .event-content { font-size: 14px; color: var(--text-primary); margin-bottom: 5px; line-height: 1.5; }
+    .event-meta { display: flex; gap: 12px; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
+    .event-cost { color: var(--accent); font-weight: 700; }
+    .event-due  { color: var(--warning); }
+    .event-due.overdue { color: var(--danger); font-weight: 700; }
+    .event-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .no-data { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 14px; }
+
+    /* ── FAB ── */
+    .fab {
+      position: fixed; bottom: 24px; right: 24px;
+      width: 58px; height: 58px; border-radius: 50%;
+      background: linear-gradient(135deg, #FF8C5A, #FF6B35);
+      color: white; border: none; font-size: 26px; cursor: pointer;
+      box-shadow: 0 4px 18px rgba(255,140,90,0.45);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; z-index: 50;
+    }
+    .fab:hover { transform: scale(1.1) rotate(90deg); box-shadow: 0 6px 22px rgba(255,140,90,0.55); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(4px); z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px; opacity: 0; pointer-events: none; transition: opacity 0.22s;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+    .modal {
+      background: white; border-radius: 18px;
+      width: 100%; max-width: 490px; max-height: 92vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      transform: translateY(24px) scale(0.98); transition: transform 0.22s;
+    }
+    .modal-overlay.show .modal { transform: translateY(0) scale(1); }
+    .modal-header {
+      padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; background: white; z-index: 1; border-radius: 18px 18px 0 0;
+    }
+    .modal-title { font-size: 18px; font-weight: 800; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 50%; border: none;
+      background: var(--bg); cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center; color: var(--text-secondary);
+    }
+    .modal-close:hover { background: var(--border); }
+    .modal-body { padding: 20px 24px; }
+    .modal-footer { padding: 14px 24px 20px; display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+    .form-control {
+      width: 100%; padding: 10px 12px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 14px; color: var(--text-primary);
+      background: white; transition: border-color 0.2s; outline: none;
+      font-family: inherit;
+    }
+    .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(91,155,213,0.12); }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ── Type Selector ── */
+    .type-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .type-option {
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      padding: 10px 4px; border-radius: 10px; border: 2px solid var(--border);
+      cursor: pointer; transition: all 0.18s; font-size: 11px; text-align: center; color: var(--text-secondary);
+    }
+    .type-option:hover { border-color: var(--primary); color: var(--primary); }
+    .type-option.selected { border-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 700; }
+    .type-option .em { font-size: 22px; }
+
+    /* ── Photo Upload ── */
+    .photo-upload { display: flex; align-items: center; gap: 16px; }
+    .photo-preview {
+      width: 80px; height: 80px; border-radius: 50%;
+      border: 2px dashed var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; cursor: pointer; overflow: hidden; flex-shrink: 0;
+      transition: border-color 0.2s; background: var(--bg);
+    }
+    .photo-preview:hover { border-color: var(--primary); }
+    .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* ── Buttons ── */
+    .btn { padding: 10px 20px; border-radius: var(--radius-sm); border: none; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+
+    /* ── Conditional fields ── */
+    .field-vaccine-due, .field-weight-val { display: none; }
+    .field-vaccine-due.show, .field-weight-val.show { display: block; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    @media (max-width: 500px) {
+      .form-row { grid-template-columns: 1fr; }
+      .type-grid { grid-template-columns: repeat(3, 1fr); }
+      .pet-profile { flex-direction: column; align-items: center; text-align: center; }
+      .pet-badges { justify-content: center; }
+      .pet-actions { top: 12px; right: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-title">🐾 寵物日誌</div>
+  <button class="btn-add-pet" onclick="openPetModal()">＋ 新增寵物</button>
+</header>
+
+<!-- Pet Tabs -->
+<div class="pet-tabs" id="petTabs"></div>
+
+<!-- Main Content -->
+<div class="main" id="mainContent"></div>
+
+<!-- FAB -->
+<button class="fab" id="fabBtn" style="display:none" onclick="openEventModal()" title="新增記錄">＋</button>
+
+<!-- ══ Pet Modal ══ -->
+<div class="modal-overlay" id="petModalOverlay" onclick="handleOverlayClick(event,'petModalOverlay')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="petModalTitle">新增寵物</span>
+      <button class="modal-close" onclick="closePetModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">照片</label>
+        <div class="photo-upload">
+          <div class="photo-preview" id="photoPreview" onclick="document.getElementById('photoInput').click()">
+            <span id="photoPlaceholder">📷</span>
+          </div>
+          <div>
+            <button class="btn btn-secondary" style="font-size:13px;padding:8px 14px" onclick="document.getElementById('photoInput').click()">上傳照片</button>
+            <p style="font-size:12px;color:var(--text-secondary);margin-top:6px">支援 JPG、PNG、GIF</p>
+          </div>
+          <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">名稱 *</label>
+          <input type="text" class="form-control" id="petName" placeholder="例：小黑">
+        </div>
+        <div class="form-group">
+          <label class="form-label">性別</label>
+          <select class="form-control" id="petGender">
+            <option value="">不填</option>
+            <option value="male">♂ 男生</option>
+            <option value="female">♀ 女生</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">種類</label>
+          <input type="text" class="form-control" id="petSpecies" placeholder="例：狗 / 貓 / 兔">
+        </div>
+        <div class="form-group">
+          <label class="form-label">品種</label>
+          <input type="text" class="form-control" id="petBreed" placeholder="例：柴犬">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">生日</label>
+        <input type="date" class="form-control" id="petBirthday">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closePetModal()">取消</button>
+      <button class="btn btn-primary" onclick="savePet()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Event Modal ══ -->
+<div class="modal-overlay" id="eventModalOverlay" onclick="handleOverlayClick(event,'eventModalOverlay')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="eventModalTitle">新增記錄</span>
+      <button class="modal-close" onclick="closeEventModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">類型 *</label>
+        <div class="type-grid">
+          <div class="type-option selected" data-type="weight"   onclick="selectType('weight')">  <span class="em">⚖️</span>體重</div>
+          <div class="type-option"          data-type="vaccine"  onclick="selectType('vaccine')"> <span class="em">💉</span>疫苗</div>
+          <div class="type-option"          data-type="medical"  onclick="selectType('medical')"> <span class="em">🏥</span>就醫</div>
+          <div class="type-option"          data-type="grooming" onclick="selectType('grooming')"><span class="em">✂️</span>美容</div>
+          <div class="type-option"          data-type="other"    onclick="selectType('other')">   <span class="em">📝</span>其他</div>
+        </div>
+      </div>
+
+      <div class="form-group field-weight-val" id="fieldWeightVal">
+        <label class="form-label">體重 (kg)</label>
+        <input type="number" class="form-control" id="eventWeight" placeholder="例：3.5" step="0.1" min="0">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">日期 *</label>
+        <input type="date" class="form-control" id="eventDate">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">內容說明</label>
+        <textarea class="form-control" id="eventContent" placeholder="記錄詳細內容…"></textarea>
+      </div>
+
+      <div class="form-group field-vaccine-due" id="fieldVaccineDue">
+        <label class="form-label">⏰ 下次施打日期（提醒用）</label>
+        <input type="date" class="form-control" id="eventNextDue">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">費用（NT$）</label>
+        <input type="number" class="form-control" id="eventCost" placeholder="例：500" min="0">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeEventModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveEvent()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════ State & Storage ═══════════════════════ */
+let pets = [], events = [];
+let currentPetId = null, filterType = 'all';
+let editingPetId = null, editingEventId = null;
+let currentPhotoUrl = null, selectedType = 'weight';
+let weightChart = null;
+
+const KEY_PETS   = 'pj_pets_v1';
+const KEY_EVENTS = 'pj_events_v1';
+
+function loadData() {
+  pets   = JSON.parse(localStorage.getItem(KEY_PETS)   || '[]');
+  events = JSON.parse(localStorage.getItem(KEY_EVENTS) || '[]');
+}
+function savePetsStorage()   { localStorage.setItem(KEY_PETS,   JSON.stringify(pets));   }
+function saveEventsStorage() { localStorage.setItem(KEY_EVENTS, JSON.stringify(events)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+/* ═══════════════════════ Pet CRUD ═══════════════════════ */
+function openPetModal(petId = null) {
+  editingPetId = petId;
+  currentPhotoUrl = null;
+  document.getElementById('petModalTitle').textContent = petId ? '編輯寵物資料' : '新增寵物';
+
+  if (petId) {
+    const p = pets.find(p => p.id === petId);
+    document.getElementById('petName').value     = p.name;
+    document.getElementById('petSpecies').value  = p.species  || '';
+    document.getElementById('petBreed').value    = p.breed    || '';
+    document.getElementById('petBirthday').value = p.birthday || '';
+    document.getElementById('petGender').value   = p.gender   || '';
+    currentPhotoUrl = p.photoUrl || null;
+  } else {
+    ['petName','petSpecies','petBreed','petBirthday'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('petGender').value = '';
+  }
+  setPhotoPreview(currentPhotoUrl);
+  document.getElementById('petModalOverlay').classList.add('show');
+}
+function closePetModal() { document.getElementById('petModalOverlay').classList.remove('show'); }
+
+function savePet() {
+  const name = document.getElementById('petName').value.trim();
+  if (!name) { alert('請輸入寵物名稱'); return; }
+
+  const data = {
+    name,
+    species:  document.getElementById('petSpecies').value.trim(),
+    breed:    document.getElementById('petBreed').value.trim(),
+    birthday: document.getElementById('petBirthday').value,
+    gender:   document.getElementById('petGender').value,
+    photoUrl: currentPhotoUrl || null,
+  };
+
+  if (editingPetId) {
+    const i = pets.findIndex(p => p.id === editingPetId);
+    pets[i] = { ...pets[i], ...data };
+  } else {
+    const np = { id: uid(), ...data };
+    pets.push(np);
+    currentPetId = np.id;
+  }
+  savePetsStorage();
+  closePetModal();
+  render();
+}
+
+function deletePet(petId) {
+  if (!confirm('確定要刪除此寵物及所有記錄嗎？此操作無法復原。')) return;
+  pets   = pets.filter(p => p.id !== petId);
+  events = events.filter(e => e.petId !== petId);
+  savePetsStorage(); saveEventsStorage();
+  if (currentPetId === petId) currentPetId = pets.length ? pets[0].id : null;
+  render();
+}
+
+/* ═══════════════════════ Event CRUD ═══════════════════════ */
+function openEventModal(eventId = null) {
+  if (!currentPetId) return;
+  editingEventId = eventId;
+  document.getElementById('eventModalTitle').textContent = eventId ? '編輯記錄' : '新增記錄';
+
+  if (eventId) {
+    const ev = events.find(e => e.id === eventId);
+    selectType(ev.type);
+    document.getElementById('eventDate').value    = ev.date;
+    document.getElementById('eventContent').value = ev.content     || '';
+    document.getElementById('eventCost').value    = ev.cost        || '';
+    document.getElementById('eventNextDue').value = ev.nextDueDate || '';
+    document.getElementById('eventWeight').value  = ev.weight      || '';
+  } else {
+    selectType(filterType !== 'all' ? filterType : 'weight');
+    document.getElementById('eventDate').value    = new Date().toISOString().split('T')[0];
+    document.getElementById('eventContent').value = '';
+    document.getElementById('eventCost').value    = '';
+    document.getElementById('eventNextDue').value = '';
+    document.getElementById('eventWeight').value  = '';
+  }
+  document.getElementById('eventModalOverlay').classList.add('show');
+}
+function closeEventModal() { document.getElementById('eventModalOverlay').classList.remove('show'); }
+
+function selectType(type) {
+  selectedType = type;
+  document.querySelectorAll('.type-option').forEach(el =>
+    el.classList.toggle('selected', el.dataset.type === type)
+  );
+  document.getElementById('fieldVaccineDue').classList.toggle('show', type === 'vaccine');
+  document.getElementById('fieldWeightVal').classList.toggle('show', type === 'weight');
+}
+
+function saveEvent() {
+  const date = document.getElementById('eventDate').value;
+  if (!date) { alert('請選擇日期'); return; }
+
+  const data = {
+    petId:       currentPetId,
+    date,
+    type:        selectedType,
+    content:     document.getElementById('eventContent').value.trim(),
+    cost:        parseFloat(document.getElementById('eventCost').value) || null,
+    nextDueDate: document.getElementById('eventNextDue').value || null,
+    weight:      parseFloat(document.getElementById('eventWeight').value) || null,
+  };
+
+  if (editingEventId) {
+    const i = events.findIndex(e => e.id === editingEventId);
+    events[i] = { ...events[i], ...data };
+  } else {
+    events.push({ id: uid(), ...data });
+  }
+  saveEventsStorage();
+  closeEventModal();
+  render();
+}
+
+function deleteEvent(eventId) {
+  if (!confirm('確定要刪除此記錄嗎？')) return;
+  events = events.filter(e => e.id !== eventId);
+  saveEventsStorage();
+  render();
+}
+
+/* ═══════════════════════ Photo ═══════════════════════ */
+function handlePhotoUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { currentPhotoUrl = ev.target.result; setPhotoPreview(currentPhotoUrl); };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function setPhotoPreview(url) {
+  const preview = document.getElementById('photoPreview');
+  const placeholder = document.getElementById('photoPlaceholder');
+  let img = preview.querySelector('img');
+  if (url) {
+    placeholder.style.display = 'none';
+    if (!img) { img = document.createElement('img'); preview.appendChild(img); }
+    img.src = url;
+  } else {
+    placeholder.style.display = '';
+    if (img) img.remove();
+  }
+}
+
+/* ═══════════════════════ Helpers ═══════════════════════ */
+const TYPE_INFO = {
+  weight:   { label: '體重',   emoji: '⚖️' },
+  vaccine:  { label: '疫苗',   emoji: '💉' },
+  medical:  { label: '就醫',   emoji: '🏥' },
+  grooming: { label: '美容',   emoji: '✂️' },
+  other:    { label: '其他',   emoji: '📝' },
+};
+
+function calcAge(birthday) {
+  if (!birthday) return null;
+  const b = new Date(birthday), now = new Date();
+  let y = now.getFullYear() - b.getFullYear();
+  let m = now.getMonth() - b.getMonth();
+  if (m < 0) { y--; m += 12; }
+  if (y < 1) return m === 0 ? '不到 1 個月' : `${m} 個月`;
+  return m === 0 ? `${y} 歲` : `${y} 歲 ${m} 個月`;
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function daysUntil(s) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.ceil((new Date(s) - today) / 86400000);
+}
+
+function speciesEmoji(s) {
+  if (!s) return '🐾';
+  const l = s.toLowerCase();
+  if (l.includes('狗') || l.includes('dog'))     return '🐶';
+  if (l.includes('貓') || l.includes('cat'))     return '🐱';
+  if (l.includes('兔') || l.includes('rabbit'))  return '🐰';
+  if (l.includes('鳥') || l.includes('bird'))    return '🐦';
+  if (l.includes('魚') || l.includes('fish'))    return '🐟';
+  if (l.includes('龜') || l.includes('turtle'))  return '🐢';
+  if (l.includes('倉鼠') || l.includes('hamster'))return '🐹';
+  return '🐾';
+}
+
+function handleOverlayClick(e, overlayId) {
+  if (e.target.id === overlayId) {
+    if (overlayId === 'petModalOverlay') closePetModal();
+    else closeEventModal();
+  }
+}
+
+/* ═══════════════════════ Render ═══════════════════════ */
+function render() {
+  renderTabs();
+  renderMain();
+  document.getElementById('fabBtn').style.display = currentPetId ? 'flex' : 'none';
+}
+
+function renderTabs() {
+  const c = document.getElementById('petTabs');
+  c.innerHTML = '';
+  pets.forEach(p => {
+    const tab = document.createElement('div');
+    tab.className = 'pet-tab' + (p.id === currentPetId ? ' active' : '');
+    tab.onclick = () => { currentPetId = p.id; filterType = 'all'; render(); };
+
+    const av = document.createElement('div');
+    av.className = 'pet-tab-avatar';
+    if (p.photoUrl) {
+      const img = document.createElement('img');
+      img.src = p.photoUrl; av.appendChild(img);
+    } else { av.textContent = speciesEmoji(p.species); }
+
+    tab.appendChild(av);
+    tab.appendChild(document.createTextNode(p.name));
+    c.appendChild(tab);
+  });
+}
+
+function renderMain() {
+  const c = document.getElementById('mainContent');
+
+  if (!pets.length) {
+    c.innerHTML = `<div class="empty-state">
+      <div class="icon">🐾</div>
+      <h3>還沒有寵物</h3>
+      <p>點擊右上角「新增寵物」<br>開始記錄你的毛小孩日常</p>
+    </div>`;
+    return;
+  }
+
+  if (!currentPetId) currentPetId = pets[0].id;
+  const pet = pets.find(p => p.id === currentPetId);
+  if (!pet) { currentPetId = pets[0].id; return render(); }
+
+  const petEvs     = events.filter(e => e.petId === currentPetId);
+  const filtered   = filterType === 'all' ? petEvs : petEvs.filter(e => e.type === filterType);
+  const sorted     = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
+  const weightEvs  = petEvs.filter(e => e.type === 'weight' && e.weight != null);
+
+  /* vaccine reminders ─ within 30 days or overdue */
+  const reminders = petEvs
+    .filter(e => e.type === 'vaccine' && e.nextDueDate)
+    .map(e => ({ ...e, days: daysUntil(e.nextDueDate) }))
+    .filter(e => e.days <= 30)
+    .sort((a, b) => a.days - b.days);
+
+  const gLabel = { male: '♂ 男生', female: '♀ 女生' };
+
+  let html = '';
+
+  /* ── Pet profile ── */
+  html += `<div class="pet-profile">
+    <div class="pet-avatar">${pet.photoUrl ? `<img src="${pet.photoUrl}" alt="">` : speciesEmoji(pet.species)}</div>
+    <div class="pet-info">
+      <div class="pet-name">${esc(pet.name)}</div>
+      <div class="pet-sub">${esc(pet.species)}${pet.breed ? ` · ${esc(pet.breed)}` : ''}</div>
+      <div class="pet-badges">
+        ${pet.birthday ? `<span class="pet-badge">🎂 ${calcAge(pet.birthday)}</span>` : ''}
+        ${pet.gender   ? `<span class="pet-badge">${gLabel[pet.gender]}</span>` : ''}
+        ${pet.birthday ? `<span class="pet-badge">📅 ${fmtDate(pet.birthday)}</span>` : ''}
+        <span class="pet-badge">📋 ${petEvs.length} 筆記錄</span>
+      </div>
+    </div>
+    <div class="pet-actions">
+      <button class="btn-icon" onclick="openPetModal('${pet.id}')" title="編輯">✏️</button>
+      <button class="btn-icon danger" onclick="deletePet('${pet.id}')" title="刪除">🗑️</button>
+    </div>
+  </div>`;
+
+  /* ── Vaccine reminders ── */
+  if (reminders.length) {
+    html += `<div class="reminder-banner"><span class="bell">🔔</span><div>
+      <h4>疫苗到期提醒</h4>`;
+    reminders.forEach(r => {
+      const ov = r.days < 0;
+      const badge = ov
+        ? `<span class="badge-overdue">逾期 ${Math.abs(r.days)} 天</span>`
+        : r.days === 0
+          ? `<span class="badge-overdue">今天到期</span>`
+          : `<span class="badge-soon">${r.days} 天後</span>`;
+      html += `<div class="reminder-item ${ov ? 'overdue' : ''}">
+        ${badge} ${esc(r.content || '疫苗')} — ${fmtDate(r.nextDueDate)}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  /* ── Filter tabs ── */
+  const counts = { all: petEvs.length };
+  Object.keys(TYPE_INFO).forEach(t => counts[t] = petEvs.filter(e => e.type === t).length);
+
+  html += `<div class="filter-tabs">`;
+  [['all','全部'],['weight','⚖️ 體重'],['vaccine','💉 疫苗'],['medical','🏥 就醫'],['grooming','✂️ 美容'],['other','📝 其他']]
+    .forEach(([t, label]) => {
+      if (counts[t] === 0 && t !== 'all') return;
+      html += `<button class="filter-tab ${filterType===t?'active':''}" data-type="${t}" onclick="setFilter('${t}')">
+        ${label}${counts[t] > 0 ? ` <span style="opacity:.65">${counts[t]}</span>` : ''}
+      </button>`;
+    });
+  html += `</div>`;
+
+  /* ── Weight chart ── */
+  if ((filterType === 'all' || filterType === 'weight') && weightEvs.length >= 1) {
+    html += `<div class="chart-card">
+      <div class="chart-title">⚖️ 體重趨勢</div>
+      <div class="chart-container"><canvas id="weightCanvas"></canvas></div>
+    </div>`;
+  }
+
+  /* ── Events list ── */
+  if (!sorted.length) {
+    html += `<div class="no-data">${
+      filterType === 'all'
+        ? '還沒有記錄，點擊右下角 ＋ 新增第一筆！'
+        : `沒有「${TYPE_INFO[filterType]?.label}」記錄`
+    }</div>`;
+  } else {
+    html += `<div class="section-label">${filterType==='all' ? '全部記錄' : TYPE_INFO[filterType]?.label} &middot; ${sorted.length} 筆</div>`;
+    html += `<div class="events-list">`;
+    sorted.forEach(ev => {
+      const info = TYPE_INFO[ev.type] || TYPE_INFO.other;
+      const dueLabel = ev.nextDueDate ? (() => {
+        const d = daysUntil(ev.nextDueDate);
+        const ov = d < 0;
+        return `<span class="event-due ${ov?'overdue':''}">⏰ 下次 ${fmtDate(ev.nextDueDate)}${ov ? ` (逾期 ${Math.abs(d)} 天)` : d===0 ? ' (今天)' : ` (${d} 天後)`}</span>`;
+      })() : '';
+      const weightLabel = ev.weight ? `<span style="color:#2563EB">${ev.weight} kg</span>` : '';
+      const costLabel   = ev.cost   ? `<span class="event-cost">💰 NT$ ${ev.cost.toLocaleString()}</span>` : '';
+
+      html += `<div class="event-card">
+        <div class="event-icon ${ev.type}">${info.emoji}</div>
+        <div class="event-body">
+          <div class="event-header">
+            <span class="event-type-label ${ev.type}">${info.label}${ev.weight ? ` · ${ev.weight} kg` : ''}</span>
+            <span class="event-date">${fmtDate(ev.date)}</span>
+          </div>
+          ${ev.content ? `<div class="event-content">${esc(ev.content)}</div>` : ''}
+          <div class="event-meta">${costLabel}${dueLabel}</div>
+        </div>
+        <div class="event-actions">
+          <button class="btn-icon" onclick="openEventModal('${ev.id}')" title="編輯">✏️</button>
+          <button class="btn-icon danger" onclick="deleteEvent('${ev.id}')" title="刪除">🗑️</button>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  c.innerHTML = html;
+
+  /* render chart after DOM update */
+  if ((filterType === 'all' || filterType === 'weight') && weightEvs.length >= 1) {
+    renderWeightChart(weightEvs);
+  }
+}
+
+function renderWeightChart(wEvs) {
+  const sorted = [...wEvs].sort((a, b) => a.date.localeCompare(b.date));
+  const labels = sorted.map(e => fmtDate(e.date));
+  const data   = sorted.map(e => e.weight);
+  const min    = Math.min(...data);
+  const max    = Math.max(...data);
+  const pad    = (max - min) * 0.3 || 0.5;
+
+  if (weightChart) { weightChart.destroy(); weightChart = null; }
+  const ctx = document.getElementById('weightCanvas');
+  if (!ctx) return;
+
+  weightChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: '體重 (kg)',
+        data,
+        borderColor: '#5B9BD5',
+        backgroundColor: 'rgba(91,155,213,0.1)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#5B9BD5',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: true,
+        tension: 0.35,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${c.parsed.y} kg` } }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 11 }, maxTicksLimit: 7 }
+        },
+        y: {
+          min: Math.max(0, min - pad),
+          max: max + pad,
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { callback: v => v.toFixed(1) + ' kg', font: { size: 11 }, maxTicksLimit: 5 }
+        }
+      }
+    }
+  });
+}
+
+function setFilter(type) { filterType = type; render(); }
+
+/* XSS guard */
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* Keyboard shortcuts */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closePetModal(); closeEventModal(); }
+});
+
+/* ═══════════════════════ Init ═══════════════════════ */
+loadData();
+if (pets.length) currentPetId = pets[0].id;
+render();
+</script>
+</body>
+</html>
