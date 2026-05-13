@@ -40,9 +40,7 @@
     .header-right{display:flex;align-items:center;gap:10px;}
     .btn-add-pet{background:rgba(255,255,255,0.92);color:var(--primary);border:none;padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;}
     .btn-add-pet:hover{background:white;transform:translateY(-1px);}
-    .btn-logout{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:6px 12px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;}
-    .btn-logout:hover{background:rgba(255,255,255,0.3);}
-    .btn-user{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.35);padding:5px 12px 5px 5px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s;max-width:180px;font-family:inherit;}
+.btn-user{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.35);padding:5px 12px 5px 5px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s;max-width:180px;font-family:inherit;}
     .btn-user:hover{background:rgba(255,255,255,0.28);}
     .user-initial{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;letter-spacing:0;}
     .user-display-name{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -164,6 +162,11 @@
     .field-vaccine-due,.field-weight-val{display:none;}
     .field-vaccine-due.show,.field-weight-val.show{display:block;}
     ::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+    /* Toast */
+    .toast-container{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);z-index:400;display:flex;flex-direction:column-reverse;gap:8px;align-items:center;pointer-events:none;width:calc(100% - 48px);max-width:380px;}
+    .toast{padding:10px 20px;border-radius:24px;font-size:14px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.18);opacity:0;transform:translateY(14px);transition:opacity 0.22s,transform 0.22s;max-width:100%;text-align:center;color:white;word-break:break-word;}
+    .toast.show{opacity:1;transform:translateY(0);}
+    .toast.success{background:#16A34A;}.toast.error{background:var(--danger);}.toast.warning{background:#D97706;}.toast.info{background:var(--text-primary);}
     @media(max-width:500px){.form-row{grid-template-columns:1fr;}.type-grid{grid-template-columns:repeat(3,1fr);}.pet-profile{flex-direction:column;align-items:center;text-align:center;}.pet-badges{justify-content:center;}.pet-actions{top:12px;right:12px;}}
   </style>
 </head>
@@ -344,11 +347,11 @@
           <div class="type-option" data-type="other" onclick="selectType('other')"><span class="em">📝</span>其他</div>
         </div>
       </div>
-      <div class="form-group field-weight-val" id="fieldWeightVal"><label class="form-label">體重 (kg)</label><input type="number" class="form-control" id="eventWeight" placeholder="例：3.5" step="0.1" min="0"></div>
+      <div class="form-group field-weight-val" id="fieldWeightVal"><label class="form-label">體重 (kg)</label><input type="number" class="form-control" id="eventWeight" placeholder="例：3.5" step="0.1" min="0.01"></div>
       <div class="form-group"><label class="form-label">日期 *</label><input type="date" class="form-control" id="eventDate"></div>
       <div class="form-group"><label class="form-label">內容說明</label><textarea class="form-control" id="eventContent" placeholder="記錄詳細內容…"></textarea></div>
       <div class="form-group field-vaccine-due" id="fieldVaccineDue"><label class="form-label">⏰ 下次施打日期（提醒用）</label><input type="date" class="form-control" id="eventNextDue"></div>
-      <div class="form-group"><label class="form-label">費用（NT$）</label><input type="number" class="form-control" id="eventCost" placeholder="例：500" min="0"></div>
+      <div class="form-group"><label class="form-label">費用（NT$）</label><input type="number" class="form-control" id="eventCost" placeholder="例：500" min="0" step="1"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeEventModal()">取消</button>
@@ -377,6 +380,16 @@ let editingPetId=null,editingEventId=null;
 let currentPhotoUrl=null,selectedType='weight';
 let weightChart=null,authMode='login';
 let reminderDays=parseInt(localStorage.getItem('reminderDays'))||30;
+
+/* ── Toast ── */
+function toast(text,type='info',duration=2800){
+  let c=document.getElementById('toastContainer');
+  if(!c){c=document.createElement('div');c.id='toastContainer';c.className='toast-container';document.body.appendChild(c);}
+  const el=document.createElement('div');el.className='toast '+type;el.textContent=text;
+  c.appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('show')));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},duration);
+}
 
 /* ── Settings ── */
 function openSettingsModal(){
@@ -414,21 +427,21 @@ async function saveSettings(){
   const updates={};
   if(displayName!==prevName)updates.data={full_name:displayName,name:displayName};
   if(newPwd){
-    if(newPwd.length<6){alert('密碼至少需要 6 個字元');btn.disabled=false;btn.textContent='儲存';return;}
+    if(newPwd.length<6){toast('密碼至少需要 6 個字元','error');btn.disabled=false;btn.textContent='儲存';return;}
     updates.password=newPwd;
   }
-  if(!Object.keys(updates).length){render();closeSettingsModal();btn.disabled=false;btn.textContent='儲存';return;}
+  if(!Object.keys(updates).length){render();closeSettingsModal();btn.disabled=false;btn.textContent='儲存';toast('設定已儲存！','success');return;}
   const{data,error}=await sb.auth.updateUser(updates);
   btn.disabled=false;btn.textContent='儲存';
-  if(error){alert('儲存失敗：'+error.message);return;}
+  if(error){toast('儲存失敗：'+error.message,'error');return;}
   currentUser=data.user;
   updateUserDisplay();
   render();
   closeSettingsModal();
-  alert('設定已儲存！');
+  toast('設定已儲存！','success');
 }
 function exportData(){
-  if(!pets.length){alert('目前沒有資料可匯出');return;}
+  if(!pets.length){toast('目前沒有資料可匯出','warning');return;}
   const rows=[['寵物名稱','類型','日期','內容說明','費用(NT$)','下次到期日','體重(kg)']];
   const sorted=[...events].sort((a,b)=>a.date.localeCompare(b.date));
   sorted.forEach(e=>{
@@ -442,19 +455,19 @@ function exportData(){
   a.href=url;a.download='寵物日誌_'+new Date().toISOString().split('T')[0]+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('CSV 已下載','success');
 }
 async function confirmDeleteAccount(){
   const input=prompt('此操作無法復原！\n\n所有寵物資料與記錄將永久刪除。\n\n請輸入你的 Email 以確認刪除：');
   if(!input)return;
-  if(input.trim().toLowerCase()!==currentUser.email.toLowerCase()){alert('Email 不符，已取消');return;}
+  if(input.trim().toLowerCase()!==currentUser.email.toLowerCase()){toast('Email 不符，已取消','error');return;}
   const{error}=await sb.rpc('delete_own_account');
   if(error){
-    // Supabase 未設定 RPC 時，改用登出並提示
-    alert('帳號刪除需要後端設定。請聯絡管理員，或至 Supabase 後台手動刪除帳號。');
+    toast('帳號刪除需要後端設定，請聯絡管理員','error');
     return;
   }
   await handleLogout();
-  alert('帳號已刪除，感謝使用寵物日誌！');
+  toast('帳號已刪除，感謝使用寵物日誌！','success');
 }
 function updateUserDisplay(){
   if(!currentUser)return;
@@ -573,6 +586,7 @@ async function loadData(){
 /* ── Pet CRUD ── */
 function openPetModal(petId=null){
   editingPetId=petId;currentPhotoUrl=null;
+  document.getElementById('petBirthday').max=new Date().toISOString().split('T')[0];
   document.getElementById('petModalTitle').textContent=petId?'編輯寵物資料':'新增寵物';
   if(petId){
     const p=pets.find(p=>p.id===petId);
@@ -593,32 +607,35 @@ function closePetModal(){document.getElementById('petModalOverlay').classList.re
 
 async function savePet(){
   const name=document.getElementById('petName').value.trim();
-  if(!name){alert('請輸入寵物名稱');return;}
+  if(!name){toast('請輸入寵物名稱','error');return;}
   const btn=document.getElementById('savePetBtn');
   btn.disabled=true;btn.textContent='儲存中…';
   const payload={name,species:document.getElementById('petSpecies').value.trim()||null,breed:document.getElementById('petBreed').value.trim()||null,birthday:document.getElementById('petBirthday').value||null,gender:document.getElementById('petGender').value||null,photo_url:currentPhotoUrl||null,user_id:currentUser.id};
   if(editingPetId){
     const{error}=await sb.from('pets').update(payload).eq('id',editingPetId);
-    if(error){alert('儲存失敗：'+error.message);btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
     const i=pets.findIndex(p=>p.id===editingPetId);
     pets[i]={...pets[i],...payload,photoUrl:payload.photo_url};
   }else{
     const{data:np,error}=await sb.from('pets').insert(payload).select().single();
-    if(error){alert('新增失敗：'+error.message);btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('新增失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
     pets.push({id:np.id,name:np.name,species:np.species,breed:np.breed,birthday:np.birthday,gender:np.gender,photoUrl:np.photo_url});
     currentPetId=np.id;
   }
   btn.disabled=false;btn.textContent='儲存';
   closePetModal();render();
+  toast(editingPetId?`已更新 ${name} 的資料`:`已新增 ${name}`,'success');
 }
 
 async function deletePet(petId){
   if(!confirm('確定要刪除此寵物及所有記錄嗎？'))return;
+  const petName=pets.find(p=>p.id===petId)?.name||'寵物';
   const{error}=await sb.from('pets').delete().eq('id',petId);
-  if(error){alert('刪除失敗：'+error.message);return;}
+  if(error){toast('刪除失敗：'+error.message,'error');return;}
   pets=pets.filter(p=>p.id!==petId);events=events.filter(e=>e.petId!==petId);
   if(currentPetId===petId)currentPetId=pets.length?pets[0].id:null;
   render();
+  toast(`已刪除 ${petName}`,'info');
 }
 
 /* ── Event CRUD ── */
@@ -655,30 +672,32 @@ function selectType(type){
 
 async function saveEvent(){
   const date=document.getElementById('eventDate').value;
-  if(!date){alert('請選擇日期');return;}
-  if(selectedType==='weight'){const w=parseFloat(document.getElementById('eventWeight').value);if(!w||w<=0){alert('請輸入有效的體重（必須大於 0）');return;}}
+  if(!date){toast('請選擇日期','error');return;}
+  if(selectedType==='weight'){const w=parseFloat(document.getElementById('eventWeight').value);if(!w||w<=0){toast('請輸入有效的體重（必須大於 0）','error');return;}}
   const btn=document.getElementById('saveEventBtn');
   btn.disabled=true;btn.textContent='儲存中…';
   const payload={pet_id:currentPetId,date,type:selectedType,content:document.getElementById('eventContent').value.trim()||null,cost:parseFloat(document.getElementById('eventCost').value)||null,next_due_date:document.getElementById('eventNextDue').value||null,weight:parseFloat(document.getElementById('eventWeight').value)||null,user_id:currentUser.id};
   if(editingEventId){
     const{error}=await sb.from('events').update(payload).eq('id',editingEventId);
-    if(error){alert('儲存失敗：'+error.message);btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
     const i=events.findIndex(e=>e.id===editingEventId);
     events[i]={...events[i],date:payload.date,type:payload.type,content:payload.content,cost:payload.cost,nextDueDate:payload.next_due_date,weight:payload.weight};
   }else{
     const{data:ne,error}=await sb.from('events').insert(payload).select().single();
-    if(error){alert('新增失敗：'+error.message);btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('新增失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
     events.push({id:ne.id,petId:ne.pet_id,date:ne.date,type:ne.type,content:ne.content,cost:ne.cost,nextDueDate:ne.next_due_date,weight:ne.weight});
   }
   btn.disabled=false;btn.textContent='儲存';
   closeEventModal();render();
+  toast(editingEventId?'記錄已更新':'記錄已儲存','success');
 }
 
 async function deleteEvent(eventId){
   if(!confirm('確定要刪除此記錄嗎？'))return;
   const{error}=await sb.from('events').delete().eq('id',eventId);
-  if(error){alert('刪除失敗：'+error.message);return;}
+  if(error){toast('刪除失敗：'+error.message,'error');return;}
   events=events.filter(e=>e.id!==eventId);render();
+  toast('記錄已刪除','info');
 }
 
 /* ── Photo ── */
@@ -706,7 +725,7 @@ async function compressImage(file,maxDim=400,quality=0.75){
 async function handlePhotoUpload(e){
   const file=e.target.files[0];if(!file)return;
   try{currentPhotoUrl=await compressImage(file);setPhotoPreview(currentPhotoUrl);}
-  catch(err){console.error('圖片處理失敗：',err);alert('圖片讀取失敗，請換一張試試');}
+  catch(err){console.error('圖片處理失敗：',err);toast('圖片讀取失敗，請換一張試試','error');}
   e.target.value='';
 }
 function setPhotoPreview(url){
