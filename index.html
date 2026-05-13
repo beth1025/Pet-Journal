@@ -266,10 +266,9 @@
 </div>
 
 <script>
-// createClient 會清除 URL hash，必須在它之前先儲存
+// 在 createClient 之前先讀取 hash（createClient 會清除它）
 const _hashParams=new URLSearchParams(window.location.hash.slice(1));
 const _isRecovery=_hashParams.get('type')==='recovery';
-if(_isRecovery)history.replaceState(null,'',window.location.pathname+window.location.search);
 
 const SUPABASE_URL='https://ogwewomiemdxqhtcpzqb.supabase.co';
 const SUPABASE_KEY='sb_publishable_bGK7Voz1LVAfD1J0ZY0EKA_rYSRa8pg';
