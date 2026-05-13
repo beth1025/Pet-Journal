@@ -276,9 +276,13 @@
 </div>
 
 <script>
-// 在 createClient 之前先讀取 hash（createClient 會清除它）
+// 在 createClient 之前先讀取 hash/query（createClient 會清除它們）
 const _hashParams=new URLSearchParams(window.location.hash.slice(1));
+const _queryParams=new URLSearchParams(window.location.search);
 const _isRecovery=_hashParams.get('type')==='recovery';
+const _oauthError=_queryParams.get('error_description')||_queryParams.get('error');
+// 乾淨的 redirect URL，不帶 hash/query，避免 OAuth 回調解析錯誤
+const _cleanUrl=window.location.origin+window.location.pathname;
 
 const SUPABASE_URL='https://ogwewomiemdxqhtcpzqb.supabase.co';
 const SUPABASE_KEY='sb_publishable_bGK7Voz1LVAfD1J0ZY0EKA_rYSRa8pg';
@@ -350,7 +354,7 @@ async function handleEmailAuth(){
 
 async function handleGoogleAuth(){
   if(!sb){showMsg('服務載入失敗，請重新整理頁面','error');return;}
-  const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
+  const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:_cleanUrl}});
   if(error)showMsg(error.message,'error');
 }
 
@@ -358,7 +362,7 @@ async function handleForgotPassword(){
   if(!sb){showMsg('服務載入失敗，請重新整理頁面','error');return;}
   const email=document.getElementById('authEmail').value.trim();
   if(!email){showMsg('請先填入你的 Email','error');return;}
-  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:_cleanUrl});
   if(error){showMsg(error.message,'error');return;}
   showMsg('重設密碼信已寄出，請檢查你的信箱！','success');
 }
@@ -573,6 +577,11 @@ if(!sb){
 if(_isRecovery){
   switchTab('newpassword');
   showMsg('請設定你的新密碼（至少 6 個字元）','success');
+}
+// OAuth 回來有錯誤時顯示給用戶
+if(_oauthError){
+  showMsg('Google 登入失敗：'+decodeURIComponent(_oauthError),'error');
+  history.replaceState(null,'',_cleanUrl);
 }
 
 sb?.auth.onAuthStateChange(async(event,session)=>{
