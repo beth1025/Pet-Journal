@@ -268,7 +268,8 @@
 <script>
 const SUPABASE_URL='https://ogwewomiemdxqhtcpzqb.supabase.co';
 const SUPABASE_KEY='sb_publishable_bGK7Voz1LVAfD1J0ZY0EKA_rYSRa8pg';
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let sb=null;
+try{sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}catch(e){console.error('Supabase 初始化失敗：',e);}
 
 let pets=[],events=[],currentUser=null;
 let currentPetId=null,filterType='all';
@@ -279,10 +280,13 @@ let weightChart=null,authMode='login';
 /* ── Auth ── */
 function switchTab(tab){
   authMode=tab;
+  const isNewPwd=tab==='newpassword';
   document.getElementById('tabLogin').classList.toggle('active',tab==='login');
   document.getElementById('tabSignup').classList.toggle('active',tab==='signup');
-  document.getElementById('authBtn').textContent=tab==='login'?'登入':'註冊';
+  document.getElementById('authBtn').textContent={login:'登入',signup:'註冊',newpassword:'設定新密碼'}[tab]||'登入';
+  document.getElementById('authBtn').onclick=handleEmailAuth;
   document.getElementById('forgotLink').style.display=tab==='login'?'block':'none';
+  document.querySelector('.auth-tabs').style.display=isNewPwd?'none':'';
   clearMsg();
 }
 
@@ -293,6 +297,19 @@ function showMsg(text,type){
 function clearMsg(){document.getElementById('authMsg').className='auth-msg';}
 
 async function handleEmailAuth(){
+  if(!sb){showMsg('服務載入失敗，請重新整理頁面','error');return;}
+  if(authMode==='newpassword'){
+    const pw=document.getElementById('authPassword').value;
+    if(!pw||pw.length<6){showMsg('密碼至少需要 6 個字元','error');return;}
+    const btn=document.getElementById('authBtn');
+    btn.disabled=true;btn.textContent='更新中…';
+    const{error}=await sb.auth.updateUser({password:pw});
+    btn.disabled=false;btn.textContent='設定新密碼';
+    if(error){showMsg(error.message,'error');return;}
+    showMsg('密碼已更新！正在跳轉登入…','success');
+    setTimeout(()=>switchTab('login'),2000);
+    return;
+  }
   const email=document.getElementById('authEmail').value.trim();
   const pw=document.getElementById('authPassword').value;
   if(!email||!pw){showMsg('請填入 Email 和密碼','error');return;}
@@ -311,11 +328,13 @@ async function handleEmailAuth(){
 }
 
 async function handleGoogleAuth(){
+  if(!sb){showMsg('服務載入失敗，請重新整理頁面','error');return;}
   const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
   if(error)showMsg(error.message,'error');
 }
 
 async function handleForgotPassword(){
+  if(!sb){showMsg('服務載入失敗，請重新整理頁面','error');return;}
   const email=document.getElementById('authEmail').value.trim();
   if(!email){showMsg('請先填入你的 Email','error');return;}
   const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
@@ -332,9 +351,10 @@ async function handleLogout(){
 
 /* ── Data ── */
 async function loadData(){
+  const uid=currentUser.id;
   const[{data:pd},{data:ed}]=await Promise.all([
-    sb.from('pets').select('*').order('created_at'),
-    sb.from('events').select('*').order('created_at'),
+    sb.from('pets').select('*').eq('user_id',uid).order('created_at'),
+    sb.from('events').select('*').eq('user_id',uid).order('created_at'),
   ]);
   pets=(pd||[]).map(p=>({id:p.id,name:p.name,species:p.species,breed:p.breed,birthday:p.birthday,gender:p.gender,photoUrl:p.photo_url}));
   events=(ed||[]).map(e=>({id:e.id,petId:e.pet_id,date:e.date,type:e.type,content:e.content,cost:e.cost,nextDueDate:e.next_due_date,weight:e.weight}));
@@ -522,21 +542,17 @@ function renderWeightChart(wEvs){
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();closeEventModal();}});
 
 /* ── 初始化 ── */
-sb.auth.onAuthStateChange(async(event,session)=>{
+if(!sb){
+  const msg=document.getElementById('authMsg');
+  msg.className='auth-msg show error';
+  msg.textContent='服務載入失敗，請重新整理頁面或檢查網路連線';
+}
+sb?.auth.onAuthStateChange(async(event,session)=>{
   if(event==='PASSWORD_RECOVERY'){
     document.getElementById('authScreen').style.display='flex';
     document.getElementById('appScreen').style.display='none';
-    showMsg('請輸入新密碼後按下方按鈕完成設定','success');
-    const btn=document.getElementById('authBtn');
-    btn.textContent='設定新密碼';
-    btn.onclick=async()=>{
-      const pw=document.getElementById('authPassword').value;
-      if(!pw||pw.length<6){showMsg('密碼至少需要 6 個字元','error');return;}
-      const{error}=await sb.auth.updateUser({password:pw});
-      if(error){showMsg(error.message,'error');return;}
-      showMsg('密碼已更新！請重新登入','success');
-      btn.textContent='登入';btn.onclick=handleEmailAuth;
-    };
+    switchTab('newpassword');
+    showMsg('請設定你的新密碼（至少 6 個字元）','success');
     return;
   }
   if(session?.user){
