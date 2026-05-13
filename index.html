@@ -720,6 +720,24 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();clo
 
 /* ── 初始化 ── */
 sb.auth.onAuthStateChange(async(event,session)=>{
+  if(event === 'PASSWORD_RECOVERY') {
+    // 重設密碼模式：顯示設定新密碼表單
+    document.getElementById('authScreen').style.display='flex';
+    document.getElementById('appScreen').style.display='none';
+    document.getElementById('authMsg').className='auth-msg show success';
+    document.getElementById('authMsg').textContent='請輸入新密碼後按登入完成設定';
+    document.getElementById('authBtn').textContent='設定新密碼';
+    document.getElementById('authBtn').onclick = async () => {
+      const pw = document.getElementById('authPassword').value;
+      if(!pw || pw.length < 6){ showMsg('密碼至少需要 6 個字元','error'); return; }
+      const { error } = await sb.auth.updateUser({ password: pw });
+      if(error){ showMsg(error.message,'error'); return; }
+      showMsg('密碼已更新！請重新登入','success');
+      document.getElementById('authBtn').textContent='登入';
+      document.getElementById('authBtn').onclick = handleEmailAuth;
+    };
+    return;
+  }
   if(session?.user){
     currentUser=session.user;
     document.getElementById('authScreen').style.display='none';
@@ -733,6 +751,4 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     document.getElementById('appScreen').style.display='none';
   }
 });
-</script>
-</body>
-</html>
+
