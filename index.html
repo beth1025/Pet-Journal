@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>寵物日誌</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <style>
     :root {
       --primary: #5B9BD5; --primary-dark: #4A87C0; --primary-light: #EBF4FD;
@@ -315,7 +315,12 @@
 <script>
 const SUPABASE_URL = 'https://ogwewomiemdxqhtcpzqb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_bGK7Voz1LVAfD1J0ZY0EKA_rYSRa8pg';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let sb = null;
+try {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {
+  console.error('Supabase 初始化失敗：', e);
+}
 
 let pets=[], events=[], currentUser=null;
 let currentPetId=null, filterType='all';
@@ -383,6 +388,7 @@ function clearMsg() {
 }
 
 async function handleEmailAuth() {
+  if (!sb) { showMsg('服務載入失敗，請重新整理頁面', 'error'); return; }
   const email = document.getElementById('authEmail').value.trim();
   const btn   = document.getElementById('authBtn');
 
@@ -425,6 +431,7 @@ async function handleEmailAuth() {
 }
 
 async function handleGoogleAuth() {
+  if (!sb) { showMsg('服務載入失敗，請重新整理頁面', 'error'); return; }
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.href }
@@ -734,7 +741,13 @@ function renderWeightChart(wEvs){
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();closeEventModal();}});
 
 /* ── 初始化 ── */
-sb.auth.onAuthStateChange(async(event,session)=>{
+if (!sb) {
+  const msg = document.getElementById('authMsg');
+  msg.className = 'auth-msg show error';
+  msg.textContent = '服務載入失敗，請重新整理頁面或檢查網路連線';
+}
+
+sb?.auth.onAuthStateChange(async(event,session)=>{
   if(event === 'PASSWORD_RECOVERY') {
     document.getElementById('authScreen').style.display='flex';
     document.getElementById('appScreen').style.display='none';
