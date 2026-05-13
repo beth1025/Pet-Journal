@@ -237,18 +237,36 @@
         <div class="settings-info-label">Email</div>
         <div class="settings-info-value" id="settingsEmail"></div>
       </div>
-      <div class="settings-info-block" style="margin-bottom:20px">
+      <div class="settings-info-block" style="margin-bottom:16px">
         <div class="settings-info-label">登入方式</div>
         <div class="settings-info-value" id="settingsProvider"></div>
       </div>
+
       <div class="settings-section-title">個人資料</div>
-      <div class="form-group" style="margin-bottom:20px">
+      <div class="form-group" style="margin-bottom:16px">
         <label class="form-label">顯示名稱</label>
         <input type="text" class="form-control" id="settingsDisplayName" placeholder="輸入你的暱稱（留空則顯示 Email）">
       </div>
+
+      <div class="settings-section-title">偏好設定</div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">疫苗到期提醒範圍</label>
+        <select class="form-control" id="settingsReminderDays">
+          <option value="7">7 天內到期才提醒</option>
+          <option value="14">14 天內到期才提醒</option>
+          <option value="30">30 天內到期才提醒</option>
+          <option value="60">60 天內到期才提醒</option>
+        </select>
+      </div>
+
+      <div class="settings-section-title">資料管理</div>
+      <button class="btn btn-secondary" style="width:100%;margin-bottom:16px;text-align:left;justify-content:flex-start;display:flex;align-items:center;gap:8px" onclick="exportData()">
+        <span style="font-size:16px">📥</span><span>匯出全部記錄（CSV）</span>
+      </button>
+
       <div id="settingsPwdSection">
         <div class="settings-section-title">安全設定</div>
-        <div class="form-group" style="margin-bottom:4px">
+        <div class="form-group" style="margin-bottom:16px">
           <label class="form-label">修改密碼（留空則不變更）</label>
           <div class="pwd-wrap">
             <input type="password" class="form-control" id="settingsNewPwd" placeholder="至少 6 個字元">
@@ -259,29 +277,11 @@
           </div>
         </div>
       </div>
-      <div style="margin-top:20px">
-        <div class="settings-section-title">偏好設定</div>
-        <div class="form-group" style="margin-bottom:20px">
-          <label class="form-label">疫苗到期提醒範圍</label>
-          <select class="form-control" id="settingsReminderDays">
-            <option value="7">7 天內到期才提醒</option>
-            <option value="14">14 天內到期才提醒</option>
-            <option value="30">30 天內到期才提醒</option>
-            <option value="60">60 天內到期才提醒</option>
-          </select>
-        </div>
-      </div>
-      <div>
-        <div class="settings-section-title">資料管理</div>
-        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px;text-align:left;justify-content:flex-start;display:flex;align-items:center;gap:8px" onclick="exportData()">
-          <span style="font-size:16px">📥</span><span>匯出全部記錄（CSV）</span>
-        </button>
-        <div style="height:12px"></div>
-        <div class="settings-section-title" style="color:var(--danger)">危險區域</div>
-        <button class="btn-danger-outline" style="width:100%;text-align:left;display:flex;align-items:center;gap:8px" onclick="confirmDeleteAccount()">
-          <span style="font-size:16px">🗑️</span><span>刪除帳號與所有資料</span>
-        </button>
-      </div>
+
+      <div class="settings-section-title" style="color:var(--danger)">危險區域</div>
+      <button class="btn-danger-outline" style="width:100%;text-align:left;display:flex;align-items:center;gap:8px" onclick="confirmDeleteAccount()">
+        <span style="font-size:16px">🗑️</span><span>刪除帳號與所有資料</span>
+      </button>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
       <button class="btn-danger-outline" onclick="confirmLogout()">登出</button>
@@ -405,6 +405,8 @@ function openSettingsModal(){
   document.getElementById('settingsEyeOffIcon').style.display='none';
   document.getElementById('settingsNewPwd').type='password';
   document.getElementById('settingsReminderDays').value=reminderDays;
+  const settingsModal=document.querySelector('#settingsModalOverlay .modal');
+  if(settingsModal)settingsModal.scrollTop=0;
   document.getElementById('settingsModalOverlay').classList.add('show');
 }
 function closeSettingsModal(){document.getElementById('settingsModalOverlay').classList.remove('show');}
