@@ -30,6 +30,10 @@
     .auth-msg.success{background:#F0FDF4;color:#16A34A;}
     .forgot-link{font-size:12px;color:var(--primary);cursor:pointer;text-align:right;margin-top:-10px;margin-bottom:14px;display:block;}
     .forgot-link:hover{text-decoration:underline;}
+    .pwd-wrap{position:relative;}
+    .pwd-wrap .form-control{padding-right:42px;}
+    .btn-pwd-toggle{position:absolute;right:1px;top:1px;bottom:1px;width:38px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);border-radius:0 var(--radius-sm) var(--radius-sm) 0;transition:color 0.2s;}
+    .btn-pwd-toggle:hover{color:var(--primary);}
     /* Header */
     .header{background:linear-gradient(135deg,#5B9BD5,#7BB3E0);color:white;padding:0 20px;height:58px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(91,155,213,0.35);position:sticky;top:0;z-index:100;}
     .header-title{font-size:18px;font-weight:700;}
@@ -172,7 +176,13 @@
     </div>
     <div class="form-group">
       <label class="form-label">密碼</label>
-      <input type="password" class="form-control" id="authPassword" placeholder="至少 6 個字元">
+      <div class="pwd-wrap">
+        <input type="password" class="form-control" id="authPassword" placeholder="至少 6 個字元">
+        <button type="button" class="btn-pwd-toggle" onclick="togglePwdVisibility()" title="顯示/隱藏密碼">
+          <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg id="eyeOffIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
     </div>
     <span class="forgot-link" id="forgotLink" onclick="handleForgotPassword()">忘記密碼？</span>
     <button class="btn btn-primary" id="authBtn" style="width:100%;margin-bottom:4px" onclick="handleEmailAuth()">登入</button>
@@ -299,6 +309,13 @@ function showMsg(text,type){
   el.textContent=text;el.className='auth-msg show '+type;
 }
 function clearMsg(){document.getElementById('authMsg').className='auth-msg';}
+function togglePwdVisibility(){
+  const input=document.getElementById('authPassword');
+  const show=input.type==='password';
+  input.type=show?'text':'password';
+  document.getElementById('eyeIcon').style.display=show?'none':'';
+  document.getElementById('eyeOffIcon').style.display=show?'':'none';
+}
 
 async function handleEmailAuth(){
   if(!sb){showMsg('服務載入失敗，請重新整理頁面','error');return;}
