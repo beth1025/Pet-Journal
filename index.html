@@ -376,11 +376,19 @@ async function handleLogout(){
 
 /* ── Data ── */
 async function loadData(){
+  if(!currentUser)throw new Error('currentUser 為 null');
+  if(!sb)throw new Error('Supabase client 未初始化');
   const uid=currentUser.id;
-  const[{data:pd},{data:ed}]=await Promise.all([
-    sb.from('pets').select('*').eq('user_id',uid).order('created_at'),
-    sb.from('events').select('*').eq('user_id',uid).order('created_at'),
+  const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('網路逾時，請重新整理頁面')),8000));
+  const result=await Promise.race([
+    Promise.all([
+      sb.from('pets').select('*').eq('user_id',uid).order('created_at'),
+      sb.from('events').select('*').eq('user_id',uid).order('created_at'),
+    ]),
+    timeout,
   ]);
+  const[{data:pd,error:pe},{data:ed,error:ee}]=result;
+  if(pe||ee)throw new Error((pe||ee).message||'資料庫查詢失敗');
   pets=(pd||[]).map(p=>({id:p.id,name:p.name,species:p.species,breed:p.breed,birthday:p.birthday,gender:p.gender,photoUrl:p.photo_url}));
   events=(ed||[]).map(e=>({id:e.id,petId:e.pet_id,date:e.date,type:e.type,content:e.content,cost:e.cost,nextDueDate:e.next_due_date,weight:e.weight}));
 }
