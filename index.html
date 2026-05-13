@@ -35,15 +35,20 @@
     .btn-pwd-toggle{position:absolute;right:1px;top:1px;bottom:1px;width:38px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);border-radius:0 var(--radius-sm) var(--radius-sm) 0;transition:color 0.2s;}
     .btn-pwd-toggle:hover{color:var(--primary);}
     /* Header */
-    .header{background:linear-gradient(135deg,var(--primary),var(--primary-light-header));color:white;padding:0 20px;height:58px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(91,155,213,0.35);position:sticky;top:0;z-index:100;}
+    .header{background:linear-gradient(135deg,var(--primary),var(--primary-light-header));color:white;padding:0 20px;height:58px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,0.18);position:sticky;top:0;z-index:100;}
     .header-title{font-size:18px;font-weight:700;}
     .header-right{display:flex;align-items:center;gap:10px;}
     .btn-add-pet{background:rgba(255,255,255,0.92);color:var(--primary);border:none;padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;}
     .btn-add-pet:hover{background:white;transform:translateY(-1px);}
-    .btn-logout{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:6px 12px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;}
-    .btn-logout:hover{background:rgba(255,255,255,0.3);}
     .btn-user{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,0.7);background:rgba(255,255,255,0.2);color:white;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;flex-shrink:0;}
     .btn-user:hover{background:rgba(255,255,255,0.35);border-color:white;}
+    /* Toast */
+    .toast-container{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
+    .toast{background:#2D3748;color:white;padding:10px 22px;border-radius:24px;font-size:14px;font-weight:600;box-shadow:0 4px 18px rgba(0,0,0,0.22);opacity:0;transform:translateY(12px);transition:opacity 0.24s,transform 0.24s;white-space:nowrap;}
+    .toast.show{opacity:1;transform:translateY(0);}
+    .toast.success{background:#16A34A;}
+    .toast.error{background:var(--danger);}
+    .toast.warning{background:#D97706;}
     /* Settings Modal */
     .settings-section{margin-bottom:20px;}
     .settings-section-title{font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:10px;}
@@ -78,6 +83,10 @@
     body.dark .form-control{background:var(--card);color:var(--text-primary);border-color:var(--border);}
     body.dark .btn-secondary{background:var(--border);color:var(--text-primary);}
     body.dark .btn-add-pet{color:var(--primary);}
+    body.dark .settings-input,body.dark .settings-text-input,body.dark .settings-select{background:var(--border);color:var(--text-primary);border-color:var(--border);}
+    body.dark .btn-google{background:var(--card);color:var(--text-primary);border-color:var(--border);}
+    body.dark .modal-close{background:var(--border);color:var(--text-primary);}
+    body.dark .pet-badge{background:var(--border);}
     /* Tabs */
     .pet-tabs{background:white;padding:10px 16px;display:flex;gap:10px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none;}
     .pet-tabs::-webkit-scrollbar{display:none;}
@@ -444,9 +453,10 @@ function hexToRgb(h){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),1
 function applyTheme(color){
   themeColor=color;
   const[r,g,b]=hexToRgb(color);
+  const rL=Math.round(r*0.15+255*0.85),gL=Math.round(g*0.15+255*0.85),bL=Math.round(b*0.15+255*0.85);
   document.documentElement.style.setProperty('--primary',color);
   document.documentElement.style.setProperty('--primary-dark',THEME_DARK[color]||color);
-  document.documentElement.style.setProperty('--primary-light',`rgba(${r},${g},${b},0.15)`);
+  document.documentElement.style.setProperty('--primary-light',`rgb(${rL},${gL},${bL})`);
   document.documentElement.style.setProperty('--primary-light-header',THEME_HEADER_LIGHT[color]||color);
 }
 function applyDarkMode(on){
@@ -473,6 +483,33 @@ function exportCSV(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`pet-journal-${new Date().toISOString().split('T')[0]}.csv`;
   a.click();URL.revokeObjectURL(a.href);
+}
+
+function toast(text,type='info',duration=2600){
+  let c=document.getElementById('toastContainer');
+  if(!c){c=document.createElement('div');c.id='toastContainer';c.className='toast-container';document.body.appendChild(c);}
+  const el=document.createElement('div');el.className='toast '+type;el.textContent=text;
+  c.appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('show')));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),280);},duration);
+}
+
+function compressImage(file,maxPx=800,quality=0.82){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const scale=Math.min(1,maxPx/Math.max(img.width,img.height));
+        const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+        const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',quality));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /* ── Auth ── */
@@ -644,23 +681,23 @@ function closePetModal(){document.getElementById('petModalOverlay').classList.re
 
 async function savePet(){
   const name=document.getElementById('petName').value.trim();
-  if(!name){alert('請輸入寵物名稱');return;}
+  if(!name){toast('請輸入寵物名稱','error');return;}
   const btn=document.getElementById('savePetBtn');
   btn.disabled=true;btn.textContent='儲存中…';
   const payload={name,species:document.getElementById('petSpecies').value.trim()||null,breed:document.getElementById('petBreed').value.trim()||null,birthday:document.getElementById('petBirthday').value||null,gender:document.getElementById('petGender').value||null,photo_url:currentPhotoUrl||null,user_id:currentUser.id};
   if(editingPetId){
     const{error}=await sb.from('pets').update(payload).eq('id',editingPetId);
-    if(error){alert('儲存失敗：'+error.message);btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
     const i=pets.findIndex(p=>p.id===editingPetId);
     pets[i]={...pets[i],...payload,photoUrl:payload.photo_url};
   }else{
     const{data:np,error}=await sb.from('pets').insert(payload).select().single();
-    if(error){alert('新增失敗：'+error.message);btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('新增失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
     pets.push({id:np.id,name:np.name,species:np.species,breed:np.breed,birthday:np.birthday,gender:np.gender,photoUrl:np.photo_url});
     currentPetId=np.id;
   }
   btn.disabled=false;btn.textContent='儲存';
-  closePetModal();render();
+  closePetModal();render();toast('寵物資料已儲存','success');
 }
 
 async function deletePet(petId){
@@ -668,7 +705,7 @@ async function deletePet(petId){
   await sb.from('pets').delete().eq('id',petId);
   pets=pets.filter(p=>p.id!==petId);events=events.filter(e=>e.petId!==petId);
   if(currentPetId===petId)currentPetId=pets.length?pets[0].id:null;
-  render();
+  render();toast('寵物已刪除');
 }
 
 /* ── Event CRUD ── */
@@ -706,36 +743,36 @@ function selectType(type){
 
 async function saveEvent(){
   const date=document.getElementById('eventDate').value;
-  if(!date){alert('請選擇日期');return;}
+  if(!date){toast('請選擇日期','error');return;}
   const btn=document.getElementById('saveEventBtn');
   btn.disabled=true;btn.textContent='儲存中…';
   const payload={pet_id:currentPetId,date,type:selectedType,content:document.getElementById('eventContent').value.trim()||null,cost:parseFloat(document.getElementById('eventCost').value)||null,next_due_date:document.getElementById('eventNextDue').value||null,weight:parseFloat(document.getElementById('eventWeight').value)||null,user_id:currentUser.id};
   if(editingEventId){
     const{error}=await sb.from('events').update(payload).eq('id',editingEventId);
-    if(error){alert('儲存失敗：'+error.message);btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
     const i=events.findIndex(e=>e.id===editingEventId);
     events[i]={...events[i],date:payload.date,type:payload.type,content:payload.content,cost:payload.cost,nextDueDate:payload.next_due_date,weight:payload.weight};
   }else{
     const{data:ne,error}=await sb.from('events').insert(payload).select().single();
-    if(error){alert('新增失敗：'+error.message);btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('新增失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
     events.push({id:ne.id,petId:ne.pet_id,date:ne.date,type:ne.type,content:ne.content,cost:ne.cost,nextDueDate:ne.next_due_date,weight:ne.weight});
   }
   btn.disabled=false;btn.textContent='儲存';
-  closeEventModal();render();
+  closeEventModal();render();toast('記錄已儲存','success');
 }
 
 async function deleteEvent(eventId){
   if(!confirm('確定要刪除此記錄嗎？'))return;
   await sb.from('events').delete().eq('id',eventId);
-  events=events.filter(e=>e.id!==eventId);render();
+  events=events.filter(e=>e.id!==eventId);render();toast('記錄已刪除');
 }
 
 /* ── Photo ── */
-function handlePhotoUpload(e){
+async function handlePhotoUpload(e){
   const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{currentPhotoUrl=ev.target.result;setPhotoPreview(currentPhotoUrl);};
-  reader.readAsDataURL(file);e.target.value='';
+  e.target.value='';
+  currentPhotoUrl=await compressImage(file);
+  setPhotoPreview(currentPhotoUrl);
 }
 function setPhotoPreview(url){
   const preview=document.getElementById('photoPreview');
@@ -799,7 +836,8 @@ function renderWeightChart(wEvs){
   const data=s.map(e=>e.weight),min=Math.min(...data),max=Math.max(...data),pad=(max-min)*0.3||0.5;
   if(weightChart){weightChart.destroy();weightChart=null;}
   const ctx=document.getElementById('weightCanvas');if(!ctx)return;
-  weightChart=new Chart(ctx,{type:'line',data:{labels:s.map(e=>fmtDate(e.date)),datasets:[{label:'體重 (kg)',data,borderColor:'#5B9BD5',backgroundColor:'rgba(91,155,213,0.1)',borderWidth:2.5,pointBackgroundColor:'#5B9BD5',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,fill:true,tension:0.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y} kg`}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:7}},y:{min:Math.max(0,min-pad),max:max+pad,grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v.toFixed(1)+' kg',font:{size:11},maxTicksLimit:5}}}}});
+  const[cr,cg,cb]=hexToRgb(themeColor);
+  weightChart=new Chart(ctx,{type:'line',data:{labels:s.map(e=>fmtDate(e.date)),datasets:[{label:'體重 (kg)',data,borderColor:themeColor,backgroundColor:`rgba(${cr},${cg},${cb},0.1)`,borderWidth:2.5,pointBackgroundColor:themeColor,pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,fill:true,tension:0.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y} kg`}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:7}},y:{min:Math.max(0,min-pad),max:max+pad,grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v.toFixed(1)+' kg',font:{size:11},maxTicksLimit:5}}}}});
 }
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();closeEventModal();closeSettings();}});
@@ -842,7 +880,7 @@ sb?.auth.onAuthStateChange(async(event,session)=>{
     document.getElementById('authScreen').style.display='none';
     document.getElementById('appScreen').style.display='block';
     try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
-    try{await loadData();}catch(err){console.error('[loadData 錯誤]',err?.message||err);}
+    try{await loadData();}catch(err){console.error('[loadData 錯誤]',err?.message||err);toast(err?.message||'資料載入失敗，請重新整理','error',5000);}
     if(pets.length)currentPetId=pets[0].id;
     try{render();}catch(e){console.error('[render]',e);}
   }else{
