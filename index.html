@@ -592,15 +592,20 @@ sb?.auth.onAuthStateChange(async(event,session)=>{
     showMsg('請設定你的新密碼（至少 6 個字元）','success');
     return;
   }
-  // recovery 模式下不因 SIGNED_IN 跳進主畫面
   if(authMode==='newpassword')return;
   if(session?.user){
     currentUser=session.user;
+    if(event==='TOKEN_REFRESHED'||event==='USER_UPDATED'){
+      try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
+      return;
+    }
+    // INITIAL_SESSION, SIGNED_IN
     document.getElementById('authScreen').style.display='none';
     document.getElementById('appScreen').style.display='block';
-    await loadData();
+    try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
+    try{await loadData();}catch(err){console.error('[loadData 錯誤]',err?.message||err);}
     if(pets.length)currentPetId=pets[0].id;
-    render();
+    try{render();}catch(e){console.error('[render]',e);}
   }else{
     currentUser=null;
     document.getElementById('authScreen').style.display='flex';
