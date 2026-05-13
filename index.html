@@ -42,6 +42,19 @@
     .btn-add-pet:hover{background:white;transform:translateY(-1px);}
     .btn-logout{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:6px 12px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;}
     .btn-logout:hover{background:rgba(255,255,255,0.3);}
+    .btn-user{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,0.7);background:rgba(255,255,255,0.2);color:white;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;flex-shrink:0;}
+    .btn-user:hover{background:rgba(255,255,255,0.35);border-color:white;}
+    /* Settings Modal */
+    .settings-section{margin-bottom:20px;}
+    .settings-section-title{font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:10px;}
+    .settings-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+    .settings-row:last-child{border-bottom:none;}
+    .settings-label{font-size:14px;color:var(--text-primary);font-weight:500;}
+    .settings-hint{font-size:12px;color:var(--text-secondary);margin-top:2px;}
+    .settings-value{font-size:14px;color:var(--text-secondary);text-align:right;word-break:break-all;}
+    .settings-badge{background:var(--primary-light);color:var(--primary);border-radius:10px;padding:2px 10px;font-size:12px;font-weight:700;}
+    .settings-input{width:72px;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;text-align:center;outline:none;font-family:inherit;color:var(--text-primary);}
+    .settings-input:focus{border-color:var(--primary);}
     /* Tabs */
     .pet-tabs{background:white;padding:10px 16px;display:flex;gap:10px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none;}
     .pet-tabs::-webkit-scrollbar{display:none;}
@@ -200,7 +213,7 @@
     <div class="header-title">🐾 寵物日誌</div>
     <div class="header-right">
       <button class="btn-add-pet" onclick="openPetModal()">＋ 新增寵物</button>
-      <button class="btn-logout" onclick="handleLogout()">登出</button>
+      <button class="btn-user" id="userBtn" onclick="openSettings()" title="帳號與設定"><span id="userInitial">?</span></button>
     </div>
   </header>
   <div class="pet-tabs" id="petTabs"></div>
@@ -275,6 +288,46 @@
   </div>
 </div>
 
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsOverlay" onclick="handleOverlayClick(event,'settingsOverlay')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">帳號與設定</span>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <div class="settings-section-title">帳號資訊</div>
+        <div class="settings-row">
+          <div class="settings-label">電子郵件</div>
+          <div class="settings-value" id="settingsEmail">—</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">登入方式</div>
+          <div class="settings-value"><span class="settings-badge" id="settingsProvider">—</span></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">偏好設定</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">疫苗提醒天數</div>
+            <div class="settings-hint">提前幾天在首頁顯示提醒</div>
+          </div>
+          <input type="number" class="settings-input" id="settingsReminderDays" min="1" max="365">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-secondary" style="color:var(--danger);border-color:var(--danger)" onclick="handleLogout()">登出</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" onclick="closeSettings()">取消</button>
+        <button class="btn btn-primary" onclick="saveSettings()">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // 在 createClient 之前先讀取 hash/query（createClient 會清除它們）
 const _hashParams=new URLSearchParams(window.location.hash.slice(1));
@@ -294,6 +347,7 @@ let currentPetId=null,filterType='all';
 let editingPetId=null,editingEventId=null;
 let currentPhotoUrl=null,selectedType='weight';
 let weightChart=null,authMode='login';
+let reminderDays=parseInt(localStorage.getItem('reminderDays'))||30;
 
 /* ── Auth ── */
 function switchTab(tab){
@@ -368,10 +422,45 @@ async function handleForgotPassword(){
 }
 
 async function handleLogout(){
+  closeSettings();
   await sb.auth.signOut();
   pets=[];events=[];currentUser=null;currentPetId=null;
   document.getElementById('appScreen').style.display='none';
   document.getElementById('authScreen').style.display='flex';
+}
+
+function updateUserDisplay(){
+  if(!currentUser)return;
+  const email=currentUser.email||'';
+  const initial=(email[0]||'?').toUpperCase();
+  document.getElementById('userInitial').textContent=initial;
+}
+
+function openSettings(){
+  if(!currentUser)return;
+  const email=currentUser.email||'—';
+  const provider=currentUser.app_metadata?.provider||'email';
+  const providerLabel={google:'Google',email:'Email 帳號'}[provider]||provider;
+  document.getElementById('settingsEmail').textContent=email;
+  document.getElementById('settingsProvider').textContent=providerLabel;
+  document.getElementById('settingsReminderDays').value=reminderDays;
+  document.getElementById('settingsOverlay').classList.add('show');
+}
+
+function closeSettings(){
+  document.getElementById('settingsOverlay').classList.remove('show');
+}
+
+function saveSettings(){
+  const val=parseInt(document.getElementById('settingsReminderDays').value);
+  if(isNaN(val)||val<1||val>365){
+    document.getElementById('settingsReminderDays').focus();
+    return;
+  }
+  reminderDays=val;
+  localStorage.setItem('reminderDays',val);
+  closeSettings();
+  render();
 }
 
 /* ── Data ── */
@@ -549,7 +638,7 @@ function renderMain(){
   const filtered=filterType==='all'?petEvs:petEvs.filter(e=>e.type===filterType);
   const sorted=[...filtered].sort((a,b)=>b.date.localeCompare(a.date));
   const weightEvs=petEvs.filter(e=>e.type==='weight'&&e.weight!=null);
-  const reminders=petEvs.filter(e=>e.type==='vaccine'&&e.nextDueDate).map(e=>({...e,days:daysUntil(e.nextDueDate)})).filter(e=>e.days<=30).sort((a,b)=>a.days-b.days);
+  const reminders=petEvs.filter(e=>e.type==='vaccine'&&e.nextDueDate).map(e=>({...e,days:daysUntil(e.nextDueDate)})).filter(e=>e.days<=reminderDays).sort((a,b)=>a.days-b.days);
   const gLabel={male:'♂ 男生',female:'♀ 女生'};
   let html=`<div class="pet-profile"><div class="pet-avatar">${pet.photoUrl?`<img src="${pet.photoUrl}" alt="">`:speciesEmoji(pet.species)}</div><div class="pet-info"><div class="pet-name">${esc(pet.name)}</div><div class="pet-sub">${esc(pet.species||'')}${pet.breed?` · ${esc(pet.breed)}`:''}</div><div class="pet-badges">${pet.birthday?`<span class="pet-badge">🎂 ${calcAge(pet.birthday)}</span>`:''} ${pet.gender?`<span class="pet-badge">${gLabel[pet.gender]}</span>`:''} ${pet.birthday?`<span class="pet-badge">📅 ${fmtDate(pet.birthday)}</span>`:''}<span class="pet-badge">📋 ${petEvs.length} 筆記錄</span></div></div><div class="pet-actions"><button class="btn-icon" onclick="openPetModal('${pet.id}')">✏️</button><button class="btn-icon danger" onclick="deletePet('${pet.id}')">🗑️</button></div></div>`;
   if(reminders.length){html+=`<div class="reminder-banner"><span class="bell">🔔</span><div><h4>疫苗到期提醒</h4>`;reminders.forEach(r=>{const ov=r.days<0;const badge=ov?`<span class="badge-overdue">逾期 ${Math.abs(r.days)} 天</span>`:r.days===0?`<span class="badge-overdue">今天到期</span>`:`<span class="badge-soon">${r.days} 天後</span>`;html+=`<div class="reminder-item ${ov?'overdue':''}">${badge} ${esc(r.content||'疫苗')} — ${fmtDate(r.nextDueDate)}</div>`;});html+=`</div></div>`;}
@@ -572,7 +661,7 @@ function renderWeightChart(wEvs){
   weightChart=new Chart(ctx,{type:'line',data:{labels:s.map(e=>fmtDate(e.date)),datasets:[{label:'體重 (kg)',data,borderColor:'#5B9BD5',backgroundColor:'rgba(91,155,213,0.1)',borderWidth:2.5,pointBackgroundColor:'#5B9BD5',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,fill:true,tension:0.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y} kg`}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:7}},y:{min:Math.max(0,min-pad),max:max+pad,grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v.toFixed(1)+' kg',font:{size:11},maxTicksLimit:5}}}}});
 }
 
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();closeEventModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();closeEventModal();closeSettings();}});
 
 /* ── 初始化 ── */
 if(!sb){
