@@ -42,6 +42,16 @@
     .btn-add-pet:hover{background:white;transform:translateY(-1px);}
     .btn-logout{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:6px 12px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;}
     .btn-logout:hover{background:rgba(255,255,255,0.3);}
+    .btn-user{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.35);padding:5px 12px 5px 5px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s;max-width:180px;font-family:inherit;}
+    .btn-user:hover{background:rgba(255,255,255,0.28);}
+    .user-initial{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;letter-spacing:0;}
+    .user-display-name{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .settings-info-block{background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;}
+    .settings-info-label{font-size:12px;color:var(--text-secondary);margin-bottom:3px;}
+    .settings-info-value{font-size:14px;font-weight:600;color:var(--text-primary);word-break:break-all;}
+    .settings-section-title{font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;margin-top:4px;}
+    .btn-danger-outline{background:#FEE2E2;color:var(--danger);border:1px solid #FECACA;padding:9px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:inherit;}
+    .btn-danger-outline:hover{background:#FEE8E8;}
     /* Tabs */
     .pet-tabs{background:white;padding:10px 16px;display:flex;gap:10px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none;}
     .pet-tabs::-webkit-scrollbar{display:none;}
@@ -200,12 +210,84 @@
     <div class="header-title">🐾 寵物日誌</div>
     <div class="header-right">
       <button class="btn-add-pet" onclick="openPetModal()">＋ 新增寵物</button>
-      <button class="btn-logout" onclick="handleLogout()">登出</button>
+      <button class="btn-user" onclick="openSettingsModal()" title="個人設定">
+        <span class="user-initial" id="userInitial">👤</span>
+        <span class="user-display-name" id="userDisplayName"></span>
+      </button>
     </div>
   </header>
   <div class="pet-tabs" id="petTabs"></div>
   <div class="main" id="mainContent"><div class="loading-state"><div class="spinner"></div><p>載入中…</p></div></div>
   <button class="fab" id="fabBtn" style="display:none" onclick="openEventModal()">＋</button>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModalOverlay" onclick="handleOverlayClick(event,'settingsModalOverlay')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ 個人設定</span>
+      <button class="modal-close" onclick="closeSettingsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section-title">帳號資訊</div>
+      <div class="settings-info-block">
+        <div class="settings-info-label">Email</div>
+        <div class="settings-info-value" id="settingsEmail"></div>
+      </div>
+      <div class="settings-info-block" style="margin-bottom:20px">
+        <div class="settings-info-label">登入方式</div>
+        <div class="settings-info-value" id="settingsProvider"></div>
+      </div>
+      <div class="settings-section-title">個人資料</div>
+      <div class="form-group" style="margin-bottom:20px">
+        <label class="form-label">顯示名稱</label>
+        <input type="text" class="form-control" id="settingsDisplayName" placeholder="輸入你的暱稱（留空則顯示 Email）">
+      </div>
+      <div id="settingsPwdSection">
+        <div class="settings-section-title">安全設定</div>
+        <div class="form-group" style="margin-bottom:4px">
+          <label class="form-label">修改密碼（留空則不變更）</label>
+          <div class="pwd-wrap">
+            <input type="password" class="form-control" id="settingsNewPwd" placeholder="至少 6 個字元">
+            <button type="button" class="btn-pwd-toggle" onclick="toggleSettingsPwd()" title="顯示/隱藏密碼">
+              <svg id="settingsEyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg id="settingsEyeOffIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:20px">
+        <div class="settings-section-title">偏好設定</div>
+        <div class="form-group" style="margin-bottom:20px">
+          <label class="form-label">疫苗到期提醒範圍</label>
+          <select class="form-control" id="settingsReminderDays">
+            <option value="7">7 天內到期才提醒</option>
+            <option value="14">14 天內到期才提醒</option>
+            <option value="30">30 天內到期才提醒</option>
+            <option value="60">60 天內到期才提醒</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div class="settings-section-title">資料管理</div>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px;text-align:left;justify-content:flex-start;display:flex;align-items:center;gap:8px" onclick="exportData()">
+          <span style="font-size:16px">📥</span><span>匯出全部記錄（CSV）</span>
+        </button>
+        <div style="height:12px"></div>
+        <div class="settings-section-title" style="color:var(--danger)">危險區域</div>
+        <button class="btn-danger-outline" style="width:100%;text-align:left;display:flex;align-items:center;gap:8px" onclick="confirmDeleteAccount()">
+          <span style="font-size:16px">🗑️</span><span>刪除帳號與所有資料</span>
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn-danger-outline" onclick="confirmLogout()">登出</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="closeSettingsModal()">取消</button>
+        <button class="btn btn-primary" id="saveSettingsBtn" onclick="saveSettings()">儲存</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Pet Modal -->
@@ -294,6 +376,98 @@ let currentPetId=null,filterType='all';
 let editingPetId=null,editingEventId=null;
 let currentPhotoUrl=null,selectedType='weight';
 let weightChart=null,authMode='login';
+let reminderDays=parseInt(localStorage.getItem('reminderDays'))||30;
+
+/* ── Settings ── */
+function openSettingsModal(){
+  if(!currentUser)return;
+  document.getElementById('settingsEmail').textContent=currentUser.email||'';
+  const provider=currentUser.app_metadata?.provider||'email';
+  document.getElementById('settingsProvider').textContent=provider==='google'?'🌐 Google 帳號':'📧 Email / 密碼';
+  const displayName=currentUser.user_metadata?.full_name||currentUser.user_metadata?.name||'';
+  document.getElementById('settingsDisplayName').value=displayName;
+  document.getElementById('settingsPwdSection').style.display=provider==='google'?'none':'block';
+  document.getElementById('settingsNewPwd').value='';
+  document.getElementById('settingsEyeIcon').style.display='';
+  document.getElementById('settingsEyeOffIcon').style.display='none';
+  document.getElementById('settingsNewPwd').type='password';
+  document.getElementById('settingsReminderDays').value=reminderDays;
+  document.getElementById('settingsModalOverlay').classList.add('show');
+}
+function closeSettingsModal(){document.getElementById('settingsModalOverlay').classList.remove('show');}
+function toggleSettingsPwd(){
+  const input=document.getElementById('settingsNewPwd');
+  const show=input.type==='password';
+  input.type=show?'text':'password';
+  document.getElementById('settingsEyeIcon').style.display=show?'none':'';
+  document.getElementById('settingsEyeOffIcon').style.display=show?'':'none';
+}
+async function saveSettings(){
+  const displayName=document.getElementById('settingsDisplayName').value.trim();
+  const newPwd=document.getElementById('settingsNewPwd').value;
+  const newReminderDays=parseInt(document.getElementById('settingsReminderDays').value);
+  const btn=document.getElementById('saveSettingsBtn');
+  btn.disabled=true;btn.textContent='儲存中…';
+  // 本地偏好直接儲存
+  if(newReminderDays!==reminderDays){reminderDays=newReminderDays;localStorage.setItem('reminderDays',reminderDays);}
+  const prevName=currentUser.user_metadata?.full_name||currentUser.user_metadata?.name||'';
+  const updates={};
+  if(displayName!==prevName)updates.data={full_name:displayName,name:displayName};
+  if(newPwd){
+    if(newPwd.length<6){alert('密碼至少需要 6 個字元');btn.disabled=false;btn.textContent='儲存';return;}
+    updates.password=newPwd;
+  }
+  if(!Object.keys(updates).length){render();closeSettingsModal();btn.disabled=false;btn.textContent='儲存';return;}
+  const{data,error}=await sb.auth.updateUser(updates);
+  btn.disabled=false;btn.textContent='儲存';
+  if(error){alert('儲存失敗：'+error.message);return;}
+  currentUser=data.user;
+  updateUserDisplay();
+  render();
+  closeSettingsModal();
+  alert('設定已儲存！');
+}
+function exportData(){
+  if(!pets.length){alert('目前沒有資料可匯出');return;}
+  const rows=[['寵物名稱','類型','日期','內容說明','費用(NT$)','下次到期日','體重(kg)']];
+  const sorted=[...events].sort((a,b)=>a.date.localeCompare(b.date));
+  sorted.forEach(e=>{
+    const pet=pets.find(p=>p.id===e.petId);
+    rows.push([pet?.name||'',TYPE_INFO[e.type]?.label||e.type,e.date,e.content||'',e.cost!=null?e.cost:'',e.nextDueDate||'',e.weight!=null?e.weight:'']);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='寵物日誌_'+new Date().toISOString().split('T')[0]+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function confirmDeleteAccount(){
+  const input=prompt('此操作無法復原！\n\n所有寵物資料與記錄將永久刪除。\n\n請輸入你的 Email 以確認刪除：');
+  if(!input)return;
+  if(input.trim().toLowerCase()!==currentUser.email.toLowerCase()){alert('Email 不符，已取消');return;}
+  const{error}=await sb.rpc('delete_own_account');
+  if(error){
+    // Supabase 未設定 RPC 時，改用登出並提示
+    alert('帳號刪除需要後端設定。請聯絡管理員，或至 Supabase 後台手動刪除帳號。');
+    return;
+  }
+  await handleLogout();
+  alert('帳號已刪除，感謝使用寵物日誌！');
+}
+function updateUserDisplay(){
+  if(!currentUser)return;
+  const displayName=currentUser.user_metadata?.full_name||currentUser.user_metadata?.name||'';
+  const email=currentUser.email||'';
+  const label=displayName||email.split('@')[0]||email;
+  const initial=(displayName||email).charAt(0).toUpperCase()||'👤';
+  document.getElementById('userInitial').textContent=initial;
+  document.getElementById('userDisplayName').textContent=label;
+}
+function confirmLogout(){
+  if(confirm('確定要登出嗎？'))handleLogout();
+}
 
 /* ── Auth ── */
 function switchTab(tab){
@@ -370,6 +544,12 @@ async function handleForgotPassword(){
 async function handleLogout(){
   await sb.auth.signOut();
   pets=[];events=[];currentUser=null;currentPetId=null;
+  document.getElementById('authEmail').value='';
+  document.getElementById('authPassword').value='';
+  document.getElementById('authPassword').type='password';
+  document.getElementById('eyeIcon').style.display='';
+  document.getElementById('eyeOffIcon').style.display='none';
+  switchTab('login');clearMsg();
   document.getElementById('appScreen').style.display='none';
   document.getElementById('authScreen').style.display='flex';
 }
@@ -377,10 +557,15 @@ async function handleLogout(){
 /* ── Data ── */
 async function loadData(){
   const uid=currentUser.id;
-  const[{data:pd},{data:ed}]=await Promise.all([
+  const[{data:pd,error:pe},{data:ed,error:ee}]=await Promise.all([
     sb.from('pets').select('*').eq('user_id',uid).order('created_at'),
     sb.from('events').select('*').eq('user_id',uid).order('created_at'),
   ]);
+  if(pe||ee){
+    console.error('載入失敗',pe||ee);
+    document.getElementById('mainContent').innerHTML=`<div class="empty-state"><div class="icon">⚠️</div><h3>載入失敗</h3><p>請重新整理頁面，或檢查網路連線</p></div>`;
+    return;
+  }
   pets=(pd||[]).map(p=>({id:p.id,name:p.name,species:p.species,breed:p.breed,birthday:p.birthday,gender:p.gender,photoUrl:p.photo_url}));
   events=(ed||[]).map(e=>({id:e.id,petId:e.pet_id,date:e.date,type:e.type,content:e.content,cost:e.cost,nextDueDate:e.next_due_date,weight:e.weight}));
 }
@@ -429,7 +614,8 @@ async function savePet(){
 
 async function deletePet(petId){
   if(!confirm('確定要刪除此寵物及所有記錄嗎？'))return;
-  await sb.from('pets').delete().eq('id',petId);
+  const{error}=await sb.from('pets').delete().eq('id',petId);
+  if(error){alert('刪除失敗：'+error.message);return;}
   pets=pets.filter(p=>p.id!==petId);events=events.filter(e=>e.petId!==petId);
   if(currentPetId===petId)currentPetId=pets.length?pets[0].id:null;
   render();
@@ -470,6 +656,7 @@ function selectType(type){
 async function saveEvent(){
   const date=document.getElementById('eventDate').value;
   if(!date){alert('請選擇日期');return;}
+  if(selectedType==='weight'){const w=parseFloat(document.getElementById('eventWeight').value);if(!w||w<=0){alert('請輸入有效的體重（必須大於 0）');return;}}
   const btn=document.getElementById('saveEventBtn');
   btn.disabled=true;btn.textContent='儲存中…';
   const payload={pet_id:currentPetId,date,type:selectedType,content:document.getElementById('eventContent').value.trim()||null,cost:parseFloat(document.getElementById('eventCost').value)||null,next_due_date:document.getElementById('eventNextDue').value||null,weight:parseFloat(document.getElementById('eventWeight').value)||null,user_id:currentUser.id};
@@ -489,16 +676,38 @@ async function saveEvent(){
 
 async function deleteEvent(eventId){
   if(!confirm('確定要刪除此記錄嗎？'))return;
-  await sb.from('events').delete().eq('id',eventId);
+  const{error}=await sb.from('events').delete().eq('id',eventId);
+  if(error){alert('刪除失敗：'+error.message);return;}
   events=events.filter(e=>e.id!==eventId);render();
 }
 
 /* ── Photo ── */
-function handlePhotoUpload(e){
+async function compressImage(file,maxDim=400,quality=0.75){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=reject;
+    reader.onload=ev=>{
+      const img=new Image();
+      img.onerror=reject;
+      img.onload=()=>{
+        let w=img.width,h=img.height;
+        if(w>h){if(w>maxDim){h=Math.round(h*maxDim/w);w=maxDim;}}
+        else{if(h>maxDim){w=Math.round(w*maxDim/h);h=maxDim;}}
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',quality));
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function handlePhotoUpload(e){
   const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{currentPhotoUrl=ev.target.result;setPhotoPreview(currentPhotoUrl);};
-  reader.readAsDataURL(file);e.target.value='';
+  try{currentPhotoUrl=await compressImage(file);setPhotoPreview(currentPhotoUrl);}
+  catch(err){console.error('圖片處理失敗：',err);alert('圖片讀取失敗，請換一張試試');}
+  e.target.value='';
 }
 function setPhotoPreview(url){
   const preview=document.getElementById('photoPreview');
@@ -510,12 +719,12 @@ function setPhotoPreview(url){
 
 /* ── Helpers ── */
 const TYPE_INFO={weight:{label:'體重',emoji:'⚖️'},vaccine:{label:'疫苗',emoji:'💉'},medical:{label:'就醫',emoji:'🏥'},grooming:{label:'美容',emoji:'✂️'},other:{label:'其他',emoji:'📝'}};
-function calcAge(b){if(!b)return null;const bd=new Date(b),now=new Date();let y=now.getFullYear()-bd.getFullYear(),m=now.getMonth()-bd.getMonth();if(m<0){y--;m+=12;}if(y<1)return m===0?'不到 1 個月':`${m} 個月`;return m===0?`${y} 歲`:`${y} 歲 ${m} 個月`;}
+function calcAge(b){if(!b)return null;const bd=new Date(b),now=new Date();if(bd>now)return'還未出生';let y=now.getFullYear()-bd.getFullYear(),m=now.getMonth()-bd.getMonth();if(m<0){y--;m+=12;}if(y<1)return m===0?'不到 1 個月':`${m} 個月`;return m===0?`${y} 歲`:`${y} 歲 ${m} 個月`;}
 function fmtDate(s){if(!s)return'';const d=new Date(s);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;}
 function daysUntil(s){const t=new Date();t.setHours(0,0,0,0);return Math.ceil((new Date(s)-t)/86400000);}
 function speciesEmoji(s){if(!s)return'🐾';const l=s.toLowerCase();if(l.includes('狗')||l.includes('dog'))return'🐶';if(l.includes('貓')||l.includes('cat'))return'🐱';if(l.includes('兔')||l.includes('rabbit'))return'🐰';if(l.includes('鳥')||l.includes('bird'))return'🐦';if(l.includes('魚')||l.includes('fish'))return'🐟';if(l.includes('龜')||l.includes('turtle'))return'🐢';if(l.includes('倉鼠')||l.includes('hamster'))return'🐹';return'🐾';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function handleOverlayClick(e,id){if(e.target.id===id){if(id==='petModalOverlay')closePetModal();else closeEventModal();}}
+function handleOverlayClick(e,id){if(e.target.id===id){if(id==='petModalOverlay')closePetModal();else if(id==='settingsModalOverlay')closeSettingsModal();else closeEventModal();}}
 function setFilter(t){filterType=t;render();}
 
 /* ── Render ── */
@@ -541,7 +750,7 @@ function renderMain(){
   const filtered=filterType==='all'?petEvs:petEvs.filter(e=>e.type===filterType);
   const sorted=[...filtered].sort((a,b)=>b.date.localeCompare(a.date));
   const weightEvs=petEvs.filter(e=>e.type==='weight'&&e.weight!=null);
-  const reminders=petEvs.filter(e=>e.type==='vaccine'&&e.nextDueDate).map(e=>({...e,days:daysUntil(e.nextDueDate)})).filter(e=>e.days<=30).sort((a,b)=>a.days-b.days);
+  const reminders=petEvs.filter(e=>e.type==='vaccine'&&e.nextDueDate).map(e=>({...e,days:daysUntil(e.nextDueDate)})).filter(e=>e.days<=reminderDays).sort((a,b)=>a.days-b.days);
   const gLabel={male:'♂ 男生',female:'♀ 女生'};
   let html=`<div class="pet-profile"><div class="pet-avatar">${pet.photoUrl?`<img src="${pet.photoUrl}" alt="">`:speciesEmoji(pet.species)}</div><div class="pet-info"><div class="pet-name">${esc(pet.name)}</div><div class="pet-sub">${esc(pet.species||'')}${pet.breed?` · ${esc(pet.breed)}`:''}</div><div class="pet-badges">${pet.birthday?`<span class="pet-badge">🎂 ${calcAge(pet.birthday)}</span>`:''} ${pet.gender?`<span class="pet-badge">${gLabel[pet.gender]}</span>`:''} ${pet.birthday?`<span class="pet-badge">📅 ${fmtDate(pet.birthday)}</span>`:''}<span class="pet-badge">📋 ${petEvs.length} 筆記錄</span></div></div><div class="pet-actions"><button class="btn-icon" onclick="openPetModal('${pet.id}')">✏️</button><button class="btn-icon danger" onclick="deletePet('${pet.id}')">🗑️</button></div></div>`;
   if(reminders.length){html+=`<div class="reminder-banner"><span class="bell">🔔</span><div><h4>疫苗到期提醒</h4>`;reminders.forEach(r=>{const ov=r.days<0;const badge=ov?`<span class="badge-overdue">逾期 ${Math.abs(r.days)} 天</span>`:r.days===0?`<span class="badge-overdue">今天到期</span>`:`<span class="badge-soon">${r.days} 天後</span>`;html+=`<div class="reminder-item ${ov?'overdue':''}">${badge} ${esc(r.content||'疫苗')} — ${fmtDate(r.nextDueDate)}</div>`;});html+=`</div></div>`;}
@@ -564,7 +773,7 @@ function renderWeightChart(wEvs){
   weightChart=new Chart(ctx,{type:'line',data:{labels:s.map(e=>fmtDate(e.date)),datasets:[{label:'體重 (kg)',data,borderColor:'#5B9BD5',backgroundColor:'rgba(91,155,213,0.1)',borderWidth:2.5,pointBackgroundColor:'#5B9BD5',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,fill:true,tension:0.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y} kg`}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:7}},y:{min:Math.max(0,min-pad),max:max+pad,grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v.toFixed(1)+' kg',font:{size:11},maxTicksLimit:5}}}}});
 }
 
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();closeEventModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();closeEventModal();closeSettingsModal();}});
 
 /* ── 初始化 ── */
 if(!sb){
@@ -598,6 +807,7 @@ sb?.auth.onAuthStateChange(async(event,session)=>{
     currentUser=session.user;
     document.getElementById('authScreen').style.display='none';
     document.getElementById('appScreen').style.display='block';
+    updateUserDisplay();
     await loadData();
     if(pets.length)currentPetId=pets[0].id;
     render();
