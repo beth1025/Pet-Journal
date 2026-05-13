@@ -571,12 +571,16 @@ async function handleLogout(){
 
 /* ── Data ── */
 async function loadData(){
-  if(!currentUser)throw new Error('loadData：currentUser 為 null');
-  if(!sb)throw new Error('loadData：Supabase client 未初始化');
+  if(!currentUser)throw new Error('currentUser 為 null');
+  if(!sb)throw new Error('Supabase client 未初始化');
   const uid=currentUser.id;
-  const[{data:pd,error:pe},{data:ed,error:ee}]=await Promise.all([
-    sb.from('pets').select('*').eq('user_id',uid).order('created_at'),
-    sb.from('events').select('*').eq('user_id',uid).order('created_at'),
+  const timer=new Promise((_,rej)=>setTimeout(()=>rej(new Error('網路逾時，請重新整理頁面（8s timeout）')),8000));
+  const[{data:pd,error:pe},{data:ed,error:ee}]=await Promise.race([
+    Promise.all([
+      sb.from('pets').select('*').eq('user_id',uid).order('created_at'),
+      sb.from('events').select('*').eq('user_id',uid).order('created_at'),
+    ]),
+    timer,
   ]);
   if(pe||ee)throw new Error((pe||ee).message||'資料庫查詢失敗');
   pets=(pd||[]).map(p=>({id:p.id,name:p.name,species:p.species,breed:p.breed,birthday:p.birthday,gender:p.gender,photoUrl:p.photo_url}));
@@ -826,15 +830,14 @@ sb?.auth.onAuthStateChange(async(event,session)=>{
     currentUser=session.user;
     document.getElementById('authScreen').style.display='none';
     document.getElementById('appScreen').style.display='block';
-    updateUserDisplay();
+    try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
     try{
       await loadData();
     }catch(err){
-      console.error('[loadData 錯誤]',err);
-      document.getElementById('mainContent').innerHTML=`<div class="empty-state"><div class="icon">⚠️</div><h3>載入失敗</h3><p>${err?.message||'未知錯誤'}<br>請重新整理頁面</p></div>`;
+      console.error('[loadData 錯誤]',err?.message||err);
     }
     if(pets.length)currentPetId=pets[0].id;
-    render();
+    try{render();}catch(e){console.error('[render]',e);}
   }else{
     currentUser=null;
     document.getElementById('authScreen').style.display='flex';
