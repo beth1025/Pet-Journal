@@ -266,6 +266,11 @@
 </div>
 
 <script>
+// createClient 會清除 URL hash，必須在它之前先儲存
+const _hashParams=new URLSearchParams(window.location.hash.slice(1));
+const _isRecovery=_hashParams.get('type')==='recovery';
+if(_isRecovery)history.replaceState(null,'',window.location.pathname+window.location.search);
+
 const SUPABASE_URL='https://ogwewomiemdxqhtcpzqb.supabase.co';
 const SUPABASE_KEY='sb_publishable_bGK7Voz1LVAfD1J0ZY0EKA_rYSRa8pg';
 let sb=null;
@@ -547,6 +552,13 @@ if(!sb){
   msg.className='auth-msg show error';
   msg.textContent='服務載入失敗，請重新整理頁面或檢查網路連線';
 }
+
+// 從 URL hash 直接偵測 recovery（最可靠，不依賴事件時序）
+if(_isRecovery){
+  switchTab('newpassword');
+  showMsg('請設定你的新密碼（至少 6 個字元）','success');
+}
+
 sb?.auth.onAuthStateChange(async(event,session)=>{
   if(event==='PASSWORD_RECOVERY'){
     document.getElementById('authScreen').style.display='flex';
@@ -555,6 +567,8 @@ sb?.auth.onAuthStateChange(async(event,session)=>{
     showMsg('請設定你的新密碼（至少 6 個字元）','success');
     return;
   }
+  // recovery 模式下不因 SIGNED_IN 跳進主畫面
+  if(authMode==='newpassword')return;
   if(session?.user){
     currentUser=session.user;
     document.getElementById('authScreen').style.display='none';
