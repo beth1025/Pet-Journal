@@ -207,7 +207,7 @@
       <button class="auth-tab" id="tabSignup" onclick="switchTab('signup')">註冊</button>
     </div>
     <div id="authMsg" class="auth-msg"></div>
-    <div class="form-group">
+    <div class="form-group" id="emailGroup">
       <label class="form-label">Email</label>
       <input type="email" class="form-control" id="authEmail" placeholder="your@email.com">
     </div>
@@ -341,23 +341,26 @@ function showToast(msg, type='info', duration=3500) {
 /* ── Auth ── */
 function switchTab(tab) {
   authMode = tab;
-  const isReset = tab === 'reset';
-  const isLogin = tab === 'login';
+  const isReset   = tab === 'reset';
+  const isNewPwd  = tab === 'newpassword';
+  const isLogin   = tab === 'login';
+  const hideExtras = isReset || isNewPwd;
 
   document.getElementById('tabLogin').classList.toggle('active', isLogin);
   document.getElementById('tabSignup').classList.toggle('active', tab==='signup');
-  document.getElementById('authTabs').style.display  = isReset ? 'none' : '';
-  document.getElementById('btnBack').style.display   = isReset ? '' : 'none';
-  document.getElementById('pwdGroup').style.display  = isReset ? 'none' : '';
-  document.getElementById('authDivider').style.display = isReset ? 'none' : '';
-  document.getElementById('btnGoogle').style.display  = isReset ? 'none' : '';
-  document.getElementById('btnForgot').style.display  = isLogin ? '' : 'none';
+  document.getElementById('authTabs').style.display    = hideExtras ? 'none' : '';
+  document.getElementById('btnBack').style.display     = hideExtras ? '' : 'none';
+  document.getElementById('emailGroup').style.display  = isNewPwd ? 'none' : '';
+  document.getElementById('pwdGroup').style.display    = isReset   ? 'none' : '';
+  document.getElementById('authDivider').style.display = hideExtras ? 'none' : '';
+  document.getElementById('btnGoogle').style.display   = hideExtras ? 'none' : '';
+  document.getElementById('btnForgot').style.display   = isLogin   ? '' : 'none';
 
-  const subMap = { login:'登入後記錄你的毛小孩日常', signup:'建立帳號開始記錄', reset:'輸入 Email 收取密碼重設信' };
+  const subMap = { login:'登入後記錄你的毛小孩日常', signup:'建立帳號開始記錄', reset:'輸入 Email 收取密碼重設信', newpassword:'請設定你的新密碼（至少 6 個字元）' };
   document.getElementById('authSub').textContent = subMap[tab] || subMap.login;
 
-  const btnMap = { login:'登入', signup:'註冊', reset:'發送重設連結' };
-  document.getElementById('authBtn').textContent = btnMap[tab];
+  const btnMap = { login:'登入', signup:'註冊', reset:'發送重設連結', newpassword:'設定新密碼' };
+  document.getElementById('authBtn').textContent = btnMap[tab] || '登入';
   clearMsg();
 }
 
@@ -390,6 +393,18 @@ async function handleEmailAuth() {
     btn.disabled = false; btn.textContent = '發送重設連結';
     if (error) { showMsg(error.message, 'error'); return; }
     showMsg('重設連結已寄出，請至信箱查收！', 'success');
+    return;
+  }
+
+  if (authMode === 'newpassword') {
+    const pw = document.getElementById('authPassword').value;
+    if (!pw || pw.length < 6) { showMsg('密碼至少需要 6 個字元', 'error'); return; }
+    btn.disabled = true; btn.textContent = '更新中…';
+    const { error } = await sb.auth.updateUser({ password: pw });
+    btn.disabled = false; btn.textContent = '設定新密碼';
+    if (error) { showMsg(error.message, 'error'); return; }
+    showMsg('密碼已更新！正在跳轉登入…', 'success');
+    setTimeout(() => switchTab('login'), 2000);
     return;
   }
 
@@ -595,7 +610,7 @@ function calcAge(b){
   if(m<0){y--;m+=12;} if(y<1)return m===0?'不到 1 個月':`${m} 個月`;
   return m===0?`${y} 歲`:`${y} 歲 ${m} 個月`;
 }
-function fmtDate(s){if(!s)return'';const d=new Date(s);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;}
+function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return`${y}/${m}/${d}`;}
 function daysUntil(s){
   const t=new Date();t.setHours(0,0,0,0);
   const [y,mo,d]=s.split('-').map(Number);
@@ -721,21 +736,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();clo
 /* ── 初始化 ── */
 sb.auth.onAuthStateChange(async(event,session)=>{
   if(event === 'PASSWORD_RECOVERY') {
-    // 重設密碼模式：顯示設定新密碼表單
     document.getElementById('authScreen').style.display='flex';
     document.getElementById('appScreen').style.display='none';
-    document.getElementById('authMsg').className='auth-msg show success';
-    document.getElementById('authMsg').textContent='請輸入新密碼後按登入完成設定';
-    document.getElementById('authBtn').textContent='設定新密碼';
-    document.getElementById('authBtn').onclick = async () => {
-      const pw = document.getElementById('authPassword').value;
-      if(!pw || pw.length < 6){ showMsg('密碼至少需要 6 個字元','error'); return; }
-      const { error } = await sb.auth.updateUser({ password: pw });
-      if(error){ showMsg(error.message,'error'); return; }
-      showMsg('密碼已更新！請重新登入','success');
-      document.getElementById('authBtn').textContent='登入';
-      document.getElementById('authBtn').onclick = handleEmailAuth;
-    };
+    switchTab('newpassword');
     return;
   }
   if(session?.user){
