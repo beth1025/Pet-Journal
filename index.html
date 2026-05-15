@@ -1185,15 +1185,20 @@ async function enterApp(user){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('appScreen').style.display='block';
   try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
-  await loadGroup();
-  try{await loadData();}catch(err){
+  try{
+    await loadData();
+  }catch(err){
     console.error('[loadData 錯誤]',err?.message||err);
     toast(err?.message||'資料載入失敗，請重新整理','error',5000);
     const _mc=document.getElementById('mainContent');
-    if(_mc&&_mc.querySelector('.spinner'))_mc.innerHTML='<div class="empty-state"><div class="icon">⚠️</div><h3>載入失敗</h3><p>請重新整理頁面</p></div>';
+    if(_mc)_mc.innerHTML='<div class="empty-state"><div class="icon">⚠️</div><h3>載入失敗</h3><p>請重新整理頁面</p></div>';
   }
   if(pets.length)currentPetId=pets[0].id;
-  try{render();}catch(e){console.error('[render]',e);}
+  render();
+  // 背景載入群組資訊，不阻塞主流程
+  loadGroup().then(()=>{
+    if(currentGroup)loadData().then(()=>{if(pets.length&&!currentPetId)currentPetId=pets[0].id;render();}).catch(()=>{});
+  }).catch(()=>{});
 }
 
 sb?.auth.onAuthStateChange(async(event,session)=>{
