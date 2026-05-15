@@ -332,7 +332,7 @@
           <div class="type-option" data-type="other" onclick="selectType('other')"><span class="em">📝</span>其他</div>
         </div>
       </div>
-      <div class="form-group field-weight-val" id="fieldWeightVal"><label class="form-label">體重 (kg)</label><input type="number" class="form-control" id="eventWeight" placeholder="例：3.5" step="0.1" min="0"></div>
+      <div class="form-group field-weight-val" id="fieldWeightVal"><label class="form-label" id="weightLabel">體重 (kg)</label><input type="number" class="form-control" id="eventWeight" placeholder="例：3.5" step="0.1" min="0"></div>
       <div class="form-group"><label class="form-label">日期 *</label><input type="date" class="form-control" id="eventDate"></div>
       <div class="form-group"><label class="form-label">內容說明</label><textarea class="form-control" id="eventContent" placeholder="記錄詳細內容…"></textarea></div>
       <div class="form-group field-vaccine-due" id="fieldVaccineDue"><label class="form-label">⏰ 下次施打日期（提醒用）</label><input type="date" class="form-control" id="eventNextDue"></div>
@@ -393,6 +393,15 @@
       </div>
       <div class="settings-section">
         <div class="settings-section-title">偏好設定</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">體重單位</div>
+          </div>
+          <select class="settings-select" id="settingsWeightUnit">
+            <option value="kg">kg</option>
+            <option value="g">g</option>
+          </select>
+        </div>
         <div class="settings-row">
           <div>
             <div class="settings-label">預設貨幣</div>
@@ -475,6 +484,7 @@ let userNickname=localStorage.getItem('userNickname')||'';
 let themeColor=localStorage.getItem('themeColor')||'#5B9BD5';
 let darkMode=localStorage.getItem('darkMode')==='1';
 let currency=localStorage.getItem('currency')||'NT$';
+let weightUnit=localStorage.getItem('weightUnit')||'kg';
 const _bdRaw=localStorage.getItem('birthdayReminderDays');
 let birthdayReminderDays=_bdRaw!=null?parseInt(_bdRaw):30;
 
@@ -657,6 +667,7 @@ function openSettings(){
   document.getElementById('settingsReminderDays').value=reminderDays;
   document.getElementById('settingsBirthdayDays').value=birthdayReminderDays;
   document.getElementById('settingsCurrency').value=currency;
+  document.getElementById('settingsWeightUnit').value=weightUnit;
   document.querySelectorAll('.color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===themeColor));
   document.getElementById('darkModeToggle').classList.toggle('on',darkMode);
   renderGroupSection();
@@ -681,10 +692,12 @@ function saveSettings(){
   userNickname=document.getElementById('settingsNickname').value.trim();
   reminderDays=rdVal;
   currency=document.getElementById('settingsCurrency').value;
+  weightUnit=document.getElementById('settingsWeightUnit').value;
   birthdayReminderDays=parseInt(document.getElementById('settingsBirthdayDays').value)||0;
   localStorage.setItem('userNickname',userNickname);
   localStorage.setItem('reminderDays',reminderDays);
   localStorage.setItem('currency',currency);
+  localStorage.setItem('weightUnit',weightUnit);
   localStorage.setItem('birthdayReminderDays',birthdayReminderDays);
   localStorage.setItem('themeColor',themeColor);
   localStorage.setItem('darkMode',darkMode?'1':'0');
@@ -925,6 +938,10 @@ function openEventModal(eventId=null){
     document.getElementById('eventWeight').value='';
   }
   document.getElementById('costLabel').textContent='費用（'+currency+'）';
+  document.getElementById('weightLabel').textContent='體重 ('+weightUnit+')';
+  const _wInput=document.getElementById('eventWeight');
+  _wInput.placeholder=weightUnit==='g'?'例：350':'例：3.5';
+  _wInput.step=weightUnit==='g'?'1':'0.1';
   document.getElementById('saveEventBtn').textContent=eventId?'更新':'儲存';
   document.getElementById('eventModalOverlay').classList.add('show');
   setTimeout(()=>document.getElementById('eventDate').focus(),80);
@@ -1093,7 +1110,7 @@ function _renderEventCard(ev){
     `<div class="event-icon ${ev.type}">${info.emoji}</div>` +
     `<div class="event-body">` +
       `<div class="event-header">` +
-        `<span class="event-type-label ${ev.type}">${info.label}${ev.weight?` · ${ev.weight} kg`:''}</span>` +
+        `<span class="event-type-label ${ev.type}">${info.label}${ev.weight!=null?` · ${ev.weight} ${weightUnit}`:''}</span>` +
         `<span class="event-date">${fmtDate(ev.date)}</span>` +
       `</div>` +
       `${ev.content?`<div class="event-content">${esc(ev.content)}</div>`:''}` +
@@ -1154,7 +1171,8 @@ function renderWeightChart(wEvs){
   if(weightChart){weightChart.destroy();weightChart=null;}
   const ctx=document.getElementById('weightCanvas');if(!ctx)return;
   const[cr,cg,cb]=hexToRgb(themeColor);
-  weightChart=new Chart(ctx,{type:'line',data:{labels:s.map(e=>fmtDate(e.date)),datasets:[{label:'體重 (kg)',data,borderColor:themeColor,backgroundColor:`rgba(${cr},${cg},${cb},0.1)`,borderWidth:2.5,pointBackgroundColor:themeColor,pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,fill:true,tension:0.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y} kg`}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:7}},y:{min:Math.max(0,min-pad),max:max+pad,grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v.toFixed(1)+' kg',font:{size:11},maxTicksLimit:5}}}}});
+  const _wFmt=v=>weightUnit==='g'?v.toFixed(0)+' g':v.toFixed(1)+' kg';
+  weightChart=new Chart(ctx,{type:'line',data:{labels:s.map(e=>fmtDate(e.date)),datasets:[{label:'體重 ('+weightUnit+')',data,borderColor:themeColor,backgroundColor:`rgba(${cr},${cg},${cb},0.1)`,borderWidth:2.5,pointBackgroundColor:themeColor,pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,fill:true,tension:0.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${_wFmt(c.parsed.y)}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:11},maxTicksLimit:7}},y:{min:Math.max(0,min-pad),max:max+pad,grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>_wFmt(v),font:{size:11},maxTicksLimit:5}}}}});
 }
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePetModal();closeEventModal();closeSettings();}});
