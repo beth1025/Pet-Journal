@@ -733,7 +733,6 @@ async function createGroup(){
     const{data:group,error:ge}=await sb.from('groups')
       .insert({name,created_by:currentUser.id,invite_code})
       .select().single();
-    console.log('新建群組:',group);
     if(ge){toast('建立失敗：'+ge.message,'error');return;}
     const finalCode=group.invite_code||invite_code;
     const{error:me}=await sb.from('group_members')
