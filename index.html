@@ -751,7 +751,8 @@ async function joinGroup(){
   const code=(document.getElementById('inviteCodeInput')?.value||'').trim().toUpperCase();
   if(!code){toast('請輸入邀請碼','error');return;}
   const{data:g,error:ge}=await sb.from('groups').select('*').ilike('invite_code',code).maybeSingle();
-  if(ge||!g){toast('邀請碼無效，請確認後重試','error');return;}
+  if(ge){toast('查詢失敗：'+ge.message,'error');return;}
+  if(!g){toast('找不到此邀請碼，請確認後重試','error');return;}
   const{data:ex}=await sb.from('group_members').select('id').eq('user_id',currentUser.id).maybeSingle();
   if(ex){toast('你已在一個群組裡了，請先離開再加入新群組','warning');return;}
   const{error:me}=await sb.from('group_members').insert({group_id:g.id,user_id:currentUser.id,role:'member'});
