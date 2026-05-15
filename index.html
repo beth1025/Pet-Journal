@@ -726,27 +726,21 @@ function renderGroupSection(){
 async function createGroup(){
   const nameInput=document.getElementById('groupNameInput');
   const name=nameInput?nameInput.value.trim():'';
-  console.log('createGroup called, name:',name);
-  if(!name){alert('請輸入群組名稱');return;}
-  if(!currentUser){alert('請先登入');return;}
+  if(!name){toast('請輸入群組名稱','error');return;}
+  if(!currentUser){toast('請先登入','error');return;}
   try{
-    console.log('inserting group, user:', currentUser.id);
-    const result=await sb.from('groups')
+    const{data:group,error:ge}=await sb.from('groups')
       .insert({name,created_by:currentUser.id})
       .select().single();
-    console.log('insert result:',JSON.stringify(result));
-    const{data:group,error:ge}=result;
-    if(ge){alert('建立失敗：'+ge.message);return;}
+    if(ge){toast('建立失敗：'+ge.message,'error');return;}
     const{error:me}=await sb.from('group_members')
       .insert({group_id:group.id,user_id:currentUser.id,role:'owner'});
-    console.log('member insert error:',me);
-    if(me){alert('加入群組失敗：'+me.message);return;}
+    if(me){toast('加入群組失敗：'+me.message,'error');return;}
     currentGroup={id:group.id,name:group.name,invite_code:group.invite_code,created_by:group.created_by,memberCount:1,myRole:'owner'};
-    alert('群組建立成功！邀請碼：'+group.invite_code);
     renderGroupSection();
+    toast('群組已建立！邀請碼：'+group.invite_code,'success',4000);
   }catch(err){
-    console.error('createGroup error:',err);
-    alert('發生錯誤：'+err.message);
+    toast('發生錯誤：'+err.message,'error');
   }
 }
 
