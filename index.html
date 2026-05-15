@@ -89,6 +89,7 @@
     body.dark .modal,body.dark .modal-header{background:var(--card);}
     body.dark .auth-card,body.dark .pet-tabs,body.dark .event-card,body.dark .pet-profile,body.dark .chart-card{background:var(--card);}
     body.dark .pet-tab,body.dark .filter-tab,body.dark .btn-icon{background:var(--card);color:var(--text-primary);border-color:var(--border);}
+    body.dark .pet-tab.active{background:var(--primary-light);color:var(--primary);border-color:var(--primary);}
     body.dark .form-control{background:var(--card);color:var(--text-primary);border-color:var(--border);}
     body.dark .btn-secondary{background:var(--border);color:var(--text-primary);}
     body.dark .btn-add-pet{color:var(--primary);}
@@ -448,6 +449,7 @@ let currentPetId=null,filterType='all';
 let editingPetId=null,editingEventId=null;
 let currentPhotoUrl=null,selectedType='weight';
 let weightChart=null,authMode='login';
+let _prevTheme='',_prevDark=false,_settingsSaved=false;
 let reminderDays=parseInt(localStorage.getItem('reminderDays'))||30;
 let userNickname=localStorage.getItem('userNickname')||'';
 let themeColor=localStorage.getItem('themeColor')||'#5B9BD5';
@@ -627,6 +629,7 @@ function updateUserDisplay(){
 
 function openSettings(){
   if(!currentUser)return;
+  _prevTheme=themeColor;_prevDark=darkMode;_settingsSaved=false;
   const provider=currentUser.app_metadata?.provider||'email';
   document.getElementById('settingsEmail').textContent=currentUser.email||'—';
   document.getElementById('settingsProvider').textContent={google:'Google',email:'Email 帳號'}[provider]||provider;
@@ -641,10 +644,16 @@ function openSettings(){
 }
 
 function closeSettings(){
+  if(!_settingsSaved){
+    applyTheme(_prevTheme);
+    applyDarkMode(_prevDark);
+    document.getElementById('darkModeToggle').classList.toggle('on',_prevDark);
+  }
   document.getElementById('settingsOverlay').classList.remove('show');
 }
 
 function saveSettings(){
+  _settingsSaved=true;
   const rdVal=parseInt(document.getElementById('settingsReminderDays').value);
   if(isNaN(rdVal)||rdVal<1||rdVal>365){document.getElementById('settingsReminderDays').focus();return;}
   userNickname=document.getElementById('settingsNickname').value.trim();
@@ -698,7 +707,9 @@ function openPetModal(petId=null){
     document.getElementById('petGender').value='';
   }
   setPhotoPreview(currentPhotoUrl);
+  document.getElementById('savePetBtn').textContent=petId?'更新':'儲存';
   document.getElementById('petModalOverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('petName').focus(),80);
 }
 function closePetModal(){document.getElementById('petModalOverlay').classList.remove('show');}
 
@@ -754,7 +765,9 @@ function openEventModal(eventId=null){
     document.getElementById('eventWeight').value='';
   }
   document.getElementById('costLabel').textContent='費用（'+currency+'）';
+  document.getElementById('saveEventBtn').textContent=eventId?'更新':'儲存';
   document.getElementById('eventModalOverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('eventDate').focus(),80);
 }
 function closeEventModal(){document.getElementById('eventModalOverlay').classList.remove('show');}
 
@@ -908,6 +921,7 @@ function _renderEventCard(ev){
 }
 
 function renderMain(){
+  if(weightChart){weightChart.destroy();weightChart=null;}
   const c=document.getElementById('mainContent');
   if(!pets.length){
     c.innerHTML=`<div class="empty-state"><div class="icon">🐾</div><h3>還沒有寵物</h3><p>點擊右上角「新增寵物」<br>開始記錄你的毛小孩日常</p></div>`;
