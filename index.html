@@ -630,7 +630,7 @@ async function handleForgotPassword(){
 async function handleLogout(){
   closeSettings();
   await sb.auth.signOut();
-  pets=[];events=[];currentUser=null;currentPetId=null;
+  pets=[];events=[];currentUser=null;currentPetId=null;currentGroup=null;
   document.getElementById('appScreen').style.display='none';
   document.getElementById('authScreen').style.display='flex';
 }
@@ -751,9 +751,13 @@ async function leaveGroup(){
 async function disbandGroup(){
   if(!await confirmDialog('確定要解散群組嗎？所有成員將被移除。','確定解散'))return;
   const gid=currentGroup.id;
-  await sb.from('pets').update({group_id:null}).eq('group_id',gid);
-  await sb.from('events').update({group_id:null}).eq('group_id',gid);
-  await sb.from('group_members').delete().eq('group_id',gid);
+  const[r1,r2,r3]=await Promise.all([
+    sb.from('pets').update({group_id:null}).eq('group_id',gid),
+    sb.from('events').update({group_id:null}).eq('group_id',gid),
+    sb.from('group_members').delete().eq('group_id',gid),
+  ]);
+  const preErr=r1.error||r2.error||r3.error;
+  if(preErr){toast('解散失敗：'+preErr.message,'error');return;}
   const{error}=await sb.from('groups').delete().eq('id',gid);
   if(error){toast('解散失敗：'+error.message,'error');return;}
   currentGroup=null;
@@ -773,7 +777,7 @@ function copyInviteCode(){
 async function loadGroup(){
   const{data:mem}=await sb.from('group_members')
     .select('group_id,role,groups(id,name,invite_code,created_by)')
-    .eq('user_id',currentUser.id).maybeSingle();
+    .eq('user_id',currentUser.id).limit(1).maybeSingle();
   if(!mem){currentGroup=null;return;}
   const g=mem.groups;
   const{count}=await sb.from('group_members').select('*',{count:'exact',head:true}).eq('group_id',g.id);
@@ -835,22 +839,23 @@ async function savePet(){
   const name=document.getElementById('petName').value.trim();
   if(!name){toast('請輸入寵物名稱','error');return;}
   const btn=document.getElementById('savePetBtn');
+  const btnLabel=editingPetId?'更新':'儲存';
   btn.disabled=true;btn.textContent='儲存中…';
   const sharingVal=document.getElementById('petSharing').value;
   const group_id=(currentGroup&&sharingVal==='group')?currentGroup.id:null;
   const payload={name,species:document.getElementById('petSpecies').value.trim()||null,breed:document.getElementById('petBreed').value.trim()||null,birthday:document.getElementById('petBirthday').value||null,gender:document.getElementById('petGender').value||null,photo_url:currentPhotoUrl||null,user_id:currentUser.id,group_id};
   if(editingPetId){
     const{error}=await sb.from('pets').update(payload).eq('id',editingPetId);
-    if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent=btnLabel;return;}
     const i=pets.findIndex(p=>p.id===editingPetId);
     pets[i]={...pets[i],...payload,photoUrl:payload.photo_url,groupId:group_id};
   }else{
     const{data:np,error}=await sb.from('pets').insert(payload).select().single();
-    if(error){toast('新增失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('新增失敗：'+error.message,'error');btn.disabled=false;btn.textContent=btnLabel;return;}
     pets.push({id:np.id,name:np.name,species:np.species,breed:np.breed,birthday:np.birthday,gender:np.gender,photoUrl:np.photo_url,groupId:np.group_id||null});
     currentPetId=np.id;
   }
-  btn.disabled=false;btn.textContent='儲存';
+  btn.disabled=false;btn.textContent=btnLabel;
   closePetModal();render();toast('寵物資料已儲存','success');
 }
 
@@ -901,21 +906,31 @@ function selectType(type){
 async function saveEvent(){
   const date=document.getElementById('eventDate').value;
   if(!date){toast('請選擇日期','error');return;}
+  if(selectedType==='weight'){
+    const wv=document.getElementById('eventWeight').value;
+    if(wv===''){toast('請輸入體重','error');return;}
+    const wn=parseFloat(wv);
+    if(isNaN(wn)||wn<=0){toast('體重必須大於 0','error');return;}
+    if(wn>999){toast('體重數值不正確，請確認單位','error');return;}
+  }
   const btn=document.getElementById('saveEventBtn');
+  const btnLabel=editingEventId?'更新':'儲存';
   btn.disabled=true;btn.textContent='儲存中…';
+  const _wRaw=document.getElementById('eventWeight').value;
+  const _weight=_wRaw!==''?parseFloat(_wRaw):null;
   const _ePet=pets.find(p=>p.id===currentPetId);
-  const payload={pet_id:currentPetId,date,type:selectedType,content:document.getElementById('eventContent').value.trim()||null,cost:parseFloat(document.getElementById('eventCost').value)||null,next_due_date:document.getElementById('eventNextDue').value||null,weight:parseFloat(document.getElementById('eventWeight').value)||null,user_id:currentUser.id,group_id:_ePet?.groupId||null};
+  const payload={pet_id:currentPetId,date,type:selectedType,content:document.getElementById('eventContent').value.trim()||null,cost:parseFloat(document.getElementById('eventCost').value)||null,next_due_date:document.getElementById('eventNextDue').value||null,weight:_weight,user_id:currentUser.id,group_id:_ePet?.groupId||null};
   if(editingEventId){
     const{error}=await sb.from('events').update(payload).eq('id',editingEventId);
-    if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent=btnLabel;return;}
     const i=events.findIndex(e=>e.id===editingEventId);
     events[i]={...events[i],date:payload.date,type:payload.type,content:payload.content,cost:payload.cost,nextDueDate:payload.next_due_date,weight:payload.weight};
   }else{
     const{data:ne,error}=await sb.from('events').insert(payload).select().single();
-    if(error){toast('新增失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
+    if(error){toast('新增失敗：'+error.message,'error');btn.disabled=false;btn.textContent=btnLabel;return;}
     events.push({id:ne.id,petId:ne.pet_id,date:ne.date,type:ne.type,content:ne.content,cost:ne.cost,nextDueDate:ne.next_due_date,weight:ne.weight});
   }
-  btn.disabled=false;btn.textContent='儲存';
+  btn.disabled=false;btn.textContent=btnLabel;
   closeEventModal();render();toast('記錄已儲存','success');
 }
 
