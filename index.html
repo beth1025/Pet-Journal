@@ -514,7 +514,7 @@ function toggleDarkMode(){
   document.getElementById('darkModeToggle').classList.toggle('on',darkMode);
 }
 function exportCSV(){
-  const rows=[['寵物名稱','類型','日期','內容','費用','下次到期日','體重']];
+  const rows=[['寵物名稱','類型','日期','內容','費用','下次到期日','體重 ('+weightUnit+')']];
   events.forEach(ev=>{
     const pet=pets.find(p=>p.id===ev.petId);
     rows.push([pet?.name||'',TYPE_INFO[ev.type]?.label||ev.type,ev.date||'',ev.content||'',ev.cost!=null?ev.cost:'',ev.nextDueDate||'',ev.weight!=null?ev.weight:'']);
@@ -766,7 +766,8 @@ async function joinGroup(){
   const{data:g,error:ge}=await sb.from('groups').select('*').ilike('invite_code',code).maybeSingle();
   if(ge){toast('查詢失敗：'+ge.message,'error');return;}
   if(!g){toast('找不到此邀請碼，請確認後重試','error');return;}
-  const{data:ex}=await sb.from('group_members').select('id').eq('user_id',currentUser.id).maybeSingle();
+  const{data:ex,error:exErr}=await sb.from('group_members').select('id').eq('user_id',currentUser.id).maybeSingle();
+  if(exErr){toast('驗證失敗：'+exErr.message,'error');return;}
   if(ex){toast('你已在一個群組裡了，請先離開再加入新群組','warning');return;}
   const{error:me}=await sb.from('group_members').insert({group_id:g.id,user_id:currentUser.id,role:'member'});
   if(me){toast('加入失敗：'+me.message,'error');return;}
@@ -963,7 +964,7 @@ async function saveEvent(){
     if(wv===''){toast('請輸入體重','error');return;}
     const wn=parseFloat(wv);
     if(isNaN(wn)||wn<=0){toast('體重必須大於 0','error');return;}
-    if(wn>999){toast('體重數值不正確，請確認單位','error');return;}
+    if(wn>(weightUnit==='g'?99999:999)){toast('體重數值不正確，請確認單位','error');return;}
   }
   const btn=document.getElementById('saveEventBtn');
   const btnLabel=editingEventId?'更新':'儲存';
