@@ -781,6 +781,13 @@ function selectType(type){
 async function saveEvent(){
   const date=document.getElementById('eventDate').value;
   if(!date){toast('請選擇日期','error');return;}
+  if(selectedType==='weight'){
+    const wv=document.getElementById('eventWeight').value;
+    if(wv===''||wv===null){alert('請輸入體重');return;}
+    const wn=parseFloat(wv);
+    if(wn<=0){alert('體重必須大於 0');return;}
+    if(wn>999){alert('體重數值不正確，請確認單位');return;}
+  }
   const btn=document.getElementById('saveEventBtn');
   btn.disabled=true;btn.textContent='儲存中…';
   const payload={pet_id:currentPetId,date,type:selectedType,content:document.getElementById('eventContent').value.trim()||null,cost:parseFloat(document.getElementById('eventCost').value)||null,next_due_date:document.getElementById('eventNextDue').value||null,weight:parseFloat(document.getElementById('eventWeight').value)||null,user_id:currentUser.id};
