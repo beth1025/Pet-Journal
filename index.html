@@ -803,13 +803,13 @@ function copyInviteCode(){
 async function loadGroup(){
   try{
     const{data:mem,error}=await sb.from('group_members')
-      .select('group_id,role,groups(id,name,invite_code,created_by)')
+      .select('group_id,role,groups(id,name,invite_code,created_by,group_members(id))')
       .eq('user_id',currentUser.id).limit(1).maybeSingle();
     if(error||!mem){currentGroup=null;return;}
     const g=mem.groups;
     if(!g){currentGroup=null;return;}
-    const{count}=await sb.from('group_members').select('*',{count:'exact',head:true}).eq('group_id',g.id);
-    currentGroup={id:g.id,name:g.name,invite_code:(g.invite_code||'').toUpperCase(),created_by:g.created_by,memberCount:count||0,myRole:mem.role};
+    const memberCount=g.group_members?.length||0;
+    currentGroup={id:g.id,name:g.name,invite_code:(g.invite_code||'').toUpperCase(),created_by:g.created_by,memberCount,myRole:mem.role};
   }catch(e){
     console.warn('[loadGroup]',e);
     currentGroup=null;
