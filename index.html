@@ -216,6 +216,8 @@
     .group-action-row input:focus{border-color:var(--primary);}
     body.dark .group-action-row input{background:var(--border);color:var(--text-primary);border-color:var(--border);}
     .group-code{font-family:monospace;letter-spacing:2px;font-size:14px;font-weight:700;background:var(--bg);padding:5px 12px;border-radius:var(--radius-sm);color:var(--primary);}
+    .group-action-row .btn-group-sm{padding:7px 14px;font-size:13px;white-space:nowrap;}
+    .btn-danger-outline{color:var(--danger);border-color:var(--danger);}
   </style>
 </head>
 <body>
@@ -696,17 +698,28 @@ function renderGroupSection(){
   if(!el)return;
   if(!currentGroup){
     el.innerHTML=
-      `<div class="group-action-row"><input type="text" id="groupNameInput" placeholder="輸入群組名稱"><button class="btn btn-primary" style="font-size:13px;padding:7px 14px;white-space:nowrap" onclick="createGroup()">建立群組</button></div>`+
-      `<div class="group-action-row"><input type="text" id="inviteCodeInput" placeholder="輸入邀請碼"><button class="btn btn-secondary" style="font-size:13px;padding:7px 14px;white-space:nowrap" onclick="joinGroup()">加入群組</button></div>`;
+      '<div class="group-action-row">'+
+        '<input type="text" id="groupNameInput" placeholder="輸入群組名稱">'+
+        '<button class="btn btn-primary btn-group-sm" onclick="createGroup()">建立群組</button>'+
+      '</div>'+
+      '<div class="group-action-row">'+
+        '<input type="text" id="inviteCodeInput" placeholder="輸入邀請碼">'+
+        '<button class="btn btn-secondary btn-group-sm" onclick="joinGroup()">加入群組</button>'+
+      '</div>';
   }else{
     const isOwner=currentGroup.created_by===currentUser.id;
     el.innerHTML=
-      `<div class="settings-row"><div class="settings-label">群組名稱</div><div class="settings-value">${esc(currentGroup.name)}</div></div>`+
-      `<div class="settings-row"><div class="settings-label">邀請碼</div><div style="display:flex;align-items:center;gap:8px"><span class="group-code">${esc(currentGroup.invite_code)}</span><button class="btn btn-secondary" style="font-size:12px;padding:5px 10px" onclick="copyInviteCode()">複製</button></div></div>`+
-      `<div class="settings-row"><div class="settings-label">成員數</div><div class="settings-value">${currentGroup.memberCount} 人</div></div>`+
-      `<div class="settings-row" style="border-bottom:none;justify-content:flex-end;gap:8px">`+
-        (isOwner?`<button class="btn btn-secondary" style="font-size:13px;padding:7px 14px;color:var(--danger);border-color:var(--danger)" onclick="disbandGroup()">解散群組</button>`:'')+
-        `<button class="btn btn-secondary" style="font-size:13px;padding:7px 14px" onclick="leaveGroup()">離開群組</button></div>`;
+      '<div class="settings-row"><div class="settings-label">群組名稱</div><div class="settings-value">'+esc(currentGroup.name)+'</div></div>'+
+      '<div class="settings-row"><div class="settings-label">邀請碼</div>'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<span class="group-code">'+esc(currentGroup.invite_code)+'</span>'+
+          '<button class="btn btn-secondary btn-group-sm" onclick="copyInviteCode()">複製</button>'+
+        '</div></div>'+
+      '<div class="settings-row"><div class="settings-label">成員數</div><div class="settings-value">'+currentGroup.memberCount+' 人</div></div>'+
+      '<div class="settings-row" style="border-bottom:none;justify-content:flex-end;gap:8px">'+
+        (isOwner?'<button class="btn btn-secondary btn-group-sm btn-danger-outline" onclick="disbandGroup()">解散群組</button>':'')+
+        '<button class="btn btn-secondary btn-group-sm" onclick="leaveGroup()">離開群組</button>'+
+      '</div>';
   }
 }
 
