@@ -713,7 +713,7 @@ function renderGroupSection(){
       '<div class="settings-row"><div class="settings-label">群組名稱</div><div class="settings-value">'+esc(currentGroup.name)+'</div></div>'+
       '<div class="settings-row"><div class="settings-label">邀請碼</div>'+
         '<div style="display:flex;align-items:center;gap:8px">'+
-          '<span class="group-code">'+esc(currentGroup.invite_code)+'</span>'+
+          '<span class="group-code">'+esc((currentGroup.invite_code||'').toUpperCase())+'</span>'+
           '<button class="btn btn-secondary btn-group-sm" onclick="copyInviteCode()">複製</button>'+
         '</div></div>'+
       '<div class="settings-row"><div class="settings-label">成員數</div><div class="settings-value">'+currentGroup.memberCount+' 人</div></div>'+
@@ -750,14 +750,14 @@ async function createGroup(){
 async function joinGroup(){
   const code=(document.getElementById('inviteCodeInput')?.value||'').trim().toUpperCase();
   if(!code){toast('請輸入邀請碼','error');return;}
-  const{data:g,error:ge}=await sb.from('groups').select('*').eq('invite_code',code).maybeSingle();
-  if(ge||!g){toast('邀請碼無效','error');return;}
-  const{data:ex}=await sb.from('group_members').select('id').eq('group_id',g.id).eq('user_id',currentUser.id).maybeSingle();
-  if(ex){toast('你已在此群組','warning');return;}
+  const{data:g,error:ge}=await sb.from('groups').select('*').ilike('invite_code',code).maybeSingle();
+  if(ge||!g){toast('邀請碼無效，請確認後重試','error');return;}
+  const{data:ex}=await sb.from('group_members').select('id').eq('user_id',currentUser.id).maybeSingle();
+  if(ex){toast('你已在一個群組裡了，請先離開再加入新群組','warning');return;}
   const{error:me}=await sb.from('group_members').insert({group_id:g.id,user_id:currentUser.id,role:'member'});
   if(me){toast('加入失敗：'+me.message,'error');return;}
   const{count}=await sb.from('group_members').select('*',{count:'exact',head:true}).eq('group_id',g.id);
-  currentGroup={id:g.id,name:g.name,invite_code:g.invite_code,created_by:g.created_by,memberCount:count||0,myRole:'member'};
+  currentGroup={id:g.id,name:g.name,invite_code:(g.invite_code||'').toUpperCase(),created_by:g.created_by,memberCount:count||0,myRole:'member'};
   renderGroupSection();
   try{await loadData();render();}catch(e){console.error(e);}
   toast('已加入群組：'+g.name,'success');
@@ -808,7 +808,7 @@ async function loadGroup(){
     const g=mem.groups;
     if(!g){currentGroup=null;return;}
     const{count}=await sb.from('group_members').select('*',{count:'exact',head:true}).eq('group_id',g.id);
-    currentGroup={id:g.id,name:g.name,invite_code:g.invite_code,created_by:g.created_by,memberCount:count||0,myRole:mem.role};
+    currentGroup={id:g.id,name:g.name,invite_code:(g.invite_code||'').toUpperCase(),created_by:g.created_by,memberCount:count||0,myRole:mem.role};
   }catch(e){
     console.warn('[loadGroup]',e);
     currentGroup=null;
