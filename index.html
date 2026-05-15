@@ -662,6 +662,7 @@ function openSettings(){
   renderGroupSection();
   document.getElementById('settingsOverlay').classList.add('show');
   document.querySelector('#settingsOverlay .modal').scrollTop=0;
+  loadGroup().then(()=>renderGroupSection()).catch(()=>{});
 }
 
 function closeSettings(){
@@ -817,12 +818,13 @@ async function loadGroup(){
 async function loadData(){
   if(!currentUser)throw new Error('currentUser 為 null');
   if(!sb)throw new Error('Supabase client 未初始化');
-  await loadGroup();
   const uid=currentUser.id;
   let _timeoutId;
   const timeout=new Promise((_,rej)=>{_timeoutId=setTimeout(()=>rej(new Error('網路逾時，請重新整理頁面')),8000);});
-  let pQ=sb.from('pets').select('*').order('created_at');
-  let eQ=sb.from('events').select('*').order('created_at');
+  const pFields='id,name,species,breed,birthday,gender,photo_url,group_id,user_id';
+  const eFields='id,pet_id,date,type,content,cost,next_due_date,weight,group_id';
+  let pQ=sb.from('pets').select(pFields).order('created_at');
+  let eQ=sb.from('events').select(eFields).order('created_at');
   if(currentGroup){
     pQ=pQ.or(`user_id.eq.${uid},group_id.eq.${currentGroup.id}`);
     eQ=eQ.or(`user_id.eq.${uid},group_id.eq.${currentGroup.id}`);
@@ -1007,15 +1009,28 @@ function renderTabs(){
     const tab=document.createElement('div');tab.className='pet-tab'+(p.id===currentPetId?' active':'');
     tab.onclick=()=>{currentPetId=p.id;filterType='all';render();};
     const av=document.createElement('div');av.className='pet-tab-avatar';
-    if(p.photoUrl){const img=document.createElement('img');img.src=p.photoUrl;av.appendChild(img);}else av.textContent=speciesEmoji(p.species);
+    av.textContent=speciesEmoji(p.species);
     tab.appendChild(av);tab.appendChild(document.createTextNode(p.name));c.appendChild(tab);
   });
+  if(pets.some(p=>p.photoUrl)){
+    setTimeout(()=>{
+      pets.forEach((p,i)=>{
+        if(!p.photoUrl)return;
+        const av=c.children[i]?.querySelector('.pet-tab-avatar');
+        if(av){av.textContent='';const img=document.createElement('img');img.src=p.photoUrl;av.appendChild(img);}
+      });
+    },0);
+  }
 }
 
 function _renderPetProfile(pet,petEvs){
   const gLabel={male:'♂ 男生',female:'♀ 女生'};
+  const avId='_av_'+pet.id;
+  if(pet.photoUrl){
+    setTimeout(()=>{const el=document.getElementById(avId);if(el)el.innerHTML=`<img src="${pet.photoUrl}" alt="">`;},0);
+  }
   return `<div class="pet-profile">` +
-    `<div class="pet-avatar">${pet.photoUrl?`<img src="${pet.photoUrl}" alt="">`:speciesEmoji(pet.species)}</div>` +
+    `<div class="pet-avatar" id="${avId}">${speciesEmoji(pet.species)}</div>` +
     `<div class="pet-info"><div class="pet-name">${esc(pet.name)}</div>` +
     `<div class="pet-sub">${esc(pet.species||'')}${pet.breed?` · ${esc(pet.breed)}`:''}</div>` +
     `<div class="pet-badges">` +
@@ -1170,6 +1185,7 @@ async function enterApp(user){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('appScreen').style.display='block';
   try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
+  await loadGroup();
   try{await loadData();}catch(err){
     console.error('[loadData 錯誤]',err?.message||err);
     toast(err?.message||'資料載入失敗，請重新整理','error',5000);
