@@ -775,13 +775,19 @@ function copyInviteCode(){
 
 /* ── Data ── */
 async function loadGroup(){
-  const{data:mem}=await sb.from('group_members')
-    .select('group_id,role,groups(id,name,invite_code,created_by)')
-    .eq('user_id',currentUser.id).limit(1).maybeSingle();
-  if(!mem){currentGroup=null;return;}
-  const g=mem.groups;
-  const{count}=await sb.from('group_members').select('*',{count:'exact',head:true}).eq('group_id',g.id);
-  currentGroup={id:g.id,name:g.name,invite_code:g.invite_code,created_by:g.created_by,memberCount:count||0,myRole:mem.role};
+  try{
+    const{data:mem,error}=await sb.from('group_members')
+      .select('group_id,role,groups(id,name,invite_code,created_by)')
+      .eq('user_id',currentUser.id).limit(1).maybeSingle();
+    if(error||!mem){currentGroup=null;return;}
+    const g=mem.groups;
+    if(!g){currentGroup=null;return;}
+    const{count}=await sb.from('group_members').select('*',{count:'exact',head:true}).eq('group_id',g.id);
+    currentGroup={id:g.id,name:g.name,invite_code:g.invite_code,created_by:g.created_by,memberCount:count||0,myRole:mem.role};
+  }catch(e){
+    console.warn('[loadGroup]',e);
+    currentGroup=null;
+  }
 }
 
 async function loadData(){
@@ -789,7 +795,8 @@ async function loadData(){
   if(!sb)throw new Error('Supabase client 未初始化');
   await loadGroup();
   const uid=currentUser.id;
-  const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('網路逾時，請重新整理頁面')),8000));
+  let _timeoutId;
+  const timeout=new Promise((_,rej)=>{_timeoutId=setTimeout(()=>rej(new Error('網路逾時，請重新整理頁面')),8000);});
   let pQ=sb.from('pets').select('*').order('created_at');
   let eQ=sb.from('events').select('*').order('created_at');
   if(currentGroup){
@@ -800,6 +807,7 @@ async function loadData(){
     eQ=eQ.eq('user_id',uid);
   }
   const result=await Promise.race([Promise.all([pQ,eQ]),timeout]);
+  clearTimeout(_timeoutId);
   const[{data:pd,error:pe},{data:ed,error:ee}]=result;
   if(pe||ee)throw new Error((pe||ee).message||'資料庫查詢失敗');
   pets=(pd||[]).map(p=>({id:p.id,name:p.name,species:p.species,breed:p.breed,birthday:p.birthday,gender:p.gender,photoUrl:p.photo_url,groupId:p.group_id||null}));
@@ -1149,7 +1157,7 @@ sb?.auth.onAuthStateChange(async(event,session)=>{
     document.getElementById('authScreen').style.display='none';
     document.getElementById('appScreen').style.display='block';
     try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
-    try{await loadData();}catch(err){console.error('[loadData 錯誤]',err?.message||err);toast(err?.message||'資料載入失敗，請重新整理','error',5000);}
+    try{await loadData();}catch(err){console.error('[loadData 錯誤]',err?.message||err);toast(err?.message||'資料載入失敗，請重新整理','error',5000);const _mc=document.getElementById('mainContent');if(_mc&&_mc.querySelector('.spinner'))_mc.innerHTML='<div class="empty-state"><div class="icon">⚠️</div><h3>載入失敗</h3><p>請重新整理頁面</p></div>';}
     if(pets.length)currentPetId=pets[0].id;
     try{render();}catch(e){console.error('[render]',e);}
   }else{
