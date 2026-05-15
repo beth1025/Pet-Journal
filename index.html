@@ -210,6 +210,12 @@
     .field-vaccine-due.show,.field-weight-val.show{display:block;}
     ::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
     @media(max-width:500px){.form-row{grid-template-columns:1fr;}.type-grid{grid-template-columns:repeat(3,1fr);}.pet-profile{flex-direction:column;align-items:center;text-align:center;}.pet-badges{justify-content:center;}.pet-actions{top:12px;right:12px;}}
+    /* Group */
+    .group-action-row{display:flex;gap:8px;margin-bottom:8px;}
+    .group-action-row input{flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;outline:none;font-family:inherit;color:var(--text-primary);background:var(--card);}
+    .group-action-row input:focus{border-color:var(--primary);}
+    body.dark .group-action-row input{background:var(--border);color:var(--text-primary);border-color:var(--border);}
+    .group-code{font-family:monospace;letter-spacing:2px;font-size:14px;font-weight:700;background:var(--bg);padding:5px 12px;border-radius:var(--radius-sm);color:var(--primary);}
   </style>
 </head>
 <body>
@@ -291,6 +297,13 @@
         <div class="form-group"><label class="form-label">品種</label><input type="text" class="form-control" id="petBreed" placeholder="例：柴犬"></div>
       </div>
       <div class="form-group"><label class="form-label">生日</label><input type="date" class="form-control" id="petBirthday"></div>
+      <div class="form-group" id="petSharingRow" style="display:none">
+        <label class="form-label">共享設定</label>
+        <select class="form-control" id="petSharing">
+          <option value="private">🔒 私人（僅自己可見）</option>
+          <option value="group">👨‍👩‍👧 共享給家庭群組</option>
+        </select>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closePetModal()">取消</button>
@@ -410,6 +423,10 @@
         </div>
       </div>
       <div class="settings-section">
+        <div class="settings-section-title">家庭群組</div>
+        <div id="groupSection"></div>
+      </div>
+      <div class="settings-section">
         <div class="settings-section-title">資料管理</div>
         <div class="settings-row">
           <div>
@@ -447,6 +464,7 @@ try{sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}catch(e){console.error(
 let pets=[],events=[],currentUser=null;
 let currentPetId=null,filterType='all';
 let editingPetId=null,editingEventId=null;
+let currentGroup=null;
 let currentPhotoUrl=null,selectedType='weight';
 let weightChart=null,authMode='login';
 let _prevTheme='',_prevDark=false,_settingsSaved=false;
@@ -639,6 +657,7 @@ function openSettings(){
   document.getElementById('settingsCurrency').value=currency;
   document.querySelectorAll('.color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===themeColor));
   document.getElementById('darkModeToggle').classList.toggle('on',darkMode);
+  renderGroupSection();
   document.getElementById('settingsOverlay').classList.add('show');
   document.querySelector('#settingsOverlay .modal').scrollTop=0;
 }
@@ -671,29 +690,127 @@ function saveSettings(){
   render();
 }
 
+/* ── Group ── */
+function renderGroupSection(){
+  const el=document.getElementById('groupSection');
+  if(!el)return;
+  if(!currentGroup){
+    el.innerHTML=
+      `<div class="group-action-row"><input type="text" id="groupNameInput" placeholder="輸入群組名稱"><button class="btn btn-primary" style="font-size:13px;padding:7px 14px;white-space:nowrap" onclick="createGroup()">建立群組</button></div>`+
+      `<div class="group-action-row"><input type="text" id="inviteCodeInput" placeholder="輸入邀請碼"><button class="btn btn-secondary" style="font-size:13px;padding:7px 14px;white-space:nowrap" onclick="joinGroup()">加入群組</button></div>`;
+  }else{
+    const isOwner=currentGroup.created_by===currentUser.id;
+    el.innerHTML=
+      `<div class="settings-row"><div class="settings-label">群組名稱</div><div class="settings-value">${esc(currentGroup.name)}</div></div>`+
+      `<div class="settings-row"><div class="settings-label">邀請碼</div><div style="display:flex;align-items:center;gap:8px"><span class="group-code">${esc(currentGroup.invite_code)}</span><button class="btn btn-secondary" style="font-size:12px;padding:5px 10px" onclick="copyInviteCode()">複製</button></div></div>`+
+      `<div class="settings-row"><div class="settings-label">成員數</div><div class="settings-value">${currentGroup.memberCount} 人</div></div>`+
+      `<div class="settings-row" style="border-bottom:none;justify-content:flex-end;gap:8px">`+
+        (isOwner?`<button class="btn btn-secondary" style="font-size:13px;padding:7px 14px;color:var(--danger);border-color:var(--danger)" onclick="disbandGroup()">解散群組</button>`:'')+
+        `<button class="btn btn-secondary" style="font-size:13px;padding:7px 14px" onclick="leaveGroup()">離開群組</button></div>`;
+  }
+}
+
+async function createGroup(){
+  const name=(document.getElementById('groupNameInput')?.value||'').trim();
+  if(!name){toast('請輸入群組名稱','error');return;}
+  const invite_code=Math.random().toString(36).substring(2,8).toUpperCase();
+  const{data:g,error:ge}=await sb.from('groups').insert({name,invite_code,created_by:currentUser.id}).select().single();
+  if(ge){toast('建立失敗：'+ge.message,'error');return;}
+  const{error:me}=await sb.from('group_members').insert({group_id:g.id,user_id:currentUser.id,role:'owner'});
+  if(me){toast('建立失敗：'+me.message,'error');return;}
+  currentGroup={id:g.id,name:g.name,invite_code:g.invite_code,created_by:g.created_by,memberCount:1,myRole:'owner'};
+  renderGroupSection();
+  toast('群組已建立！邀請碼：'+g.invite_code,'success',4000);
+}
+
+async function joinGroup(){
+  const code=(document.getElementById('inviteCodeInput')?.value||'').trim().toUpperCase();
+  if(!code){toast('請輸入邀請碼','error');return;}
+  const{data:g,error:ge}=await sb.from('groups').select('*').eq('invite_code',code).maybeSingle();
+  if(ge||!g){toast('邀請碼無效','error');return;}
+  const{data:ex}=await sb.from('group_members').select('id').eq('group_id',g.id).eq('user_id',currentUser.id).maybeSingle();
+  if(ex){toast('你已在此群組','warning');return;}
+  const{error:me}=await sb.from('group_members').insert({group_id:g.id,user_id:currentUser.id,role:'member'});
+  if(me){toast('加入失敗：'+me.message,'error');return;}
+  const{count}=await sb.from('group_members').select('*',{count:'exact',head:true}).eq('group_id',g.id);
+  currentGroup={id:g.id,name:g.name,invite_code:g.invite_code,created_by:g.created_by,memberCount:count||0,myRole:'member'};
+  renderGroupSection();
+  try{await loadData();render();}catch(e){console.error(e);}
+  toast('已加入群組：'+g.name,'success');
+}
+
+async function leaveGroup(){
+  if(!await confirmDialog('確定要離開此群組嗎？','確定離開'))return;
+  const{error}=await sb.from('group_members').delete().eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
+  if(error){toast('操作失敗：'+error.message,'error');return;}
+  currentGroup=null;
+  renderGroupSection();
+  try{await loadData();render();}catch(e){console.error(e);}
+  toast('已離開群組');
+}
+
+async function disbandGroup(){
+  if(!await confirmDialog('確定要解散群組嗎？所有成員將被移除。','確定解散'))return;
+  const gid=currentGroup.id;
+  await sb.from('pets').update({group_id:null}).eq('group_id',gid);
+  await sb.from('events').update({group_id:null}).eq('group_id',gid);
+  await sb.from('group_members').delete().eq('group_id',gid);
+  const{error}=await sb.from('groups').delete().eq('id',gid);
+  if(error){toast('解散失敗：'+error.message,'error');return;}
+  currentGroup=null;
+  renderGroupSection();
+  try{await loadData();render();}catch(e){console.error(e);}
+  toast('群組已解散');
+}
+
+function copyInviteCode(){
+  if(!currentGroup)return;
+  navigator.clipboard.writeText(currentGroup.invite_code)
+    .then(()=>toast('邀請碼已複製','success'))
+    .catch(()=>toast('複製失敗，邀請碼：'+currentGroup.invite_code,'warning',4000));
+}
+
 /* ── Data ── */
+async function loadGroup(){
+  const{data:mem}=await sb.from('group_members')
+    .select('group_id,role,groups(id,name,invite_code,created_by)')
+    .eq('user_id',currentUser.id).maybeSingle();
+  if(!mem){currentGroup=null;return;}
+  const g=mem.groups;
+  const{count}=await sb.from('group_members').select('*',{count:'exact',head:true}).eq('group_id',g.id);
+  currentGroup={id:g.id,name:g.name,invite_code:g.invite_code,created_by:g.created_by,memberCount:count||0,myRole:mem.role};
+}
+
 async function loadData(){
   if(!currentUser)throw new Error('currentUser 為 null');
   if(!sb)throw new Error('Supabase client 未初始化');
+  await loadGroup();
   const uid=currentUser.id;
   const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('網路逾時，請重新整理頁面')),8000));
-  const result=await Promise.race([
-    Promise.all([
-      sb.from('pets').select('*').eq('user_id',uid).order('created_at'),
-      sb.from('events').select('*').eq('user_id',uid).order('created_at'),
-    ]),
-    timeout,
-  ]);
+  let pQ=sb.from('pets').select('*').order('created_at');
+  let eQ=sb.from('events').select('*').order('created_at');
+  if(currentGroup){
+    pQ=pQ.or(`user_id.eq.${uid},group_id.eq.${currentGroup.id}`);
+    eQ=eQ.or(`user_id.eq.${uid},group_id.eq.${currentGroup.id}`);
+  }else{
+    pQ=pQ.eq('user_id',uid);
+    eQ=eQ.eq('user_id',uid);
+  }
+  const result=await Promise.race([Promise.all([pQ,eQ]),timeout]);
   const[{data:pd,error:pe},{data:ed,error:ee}]=result;
   if(pe||ee)throw new Error((pe||ee).message||'資料庫查詢失敗');
-  pets=(pd||[]).map(p=>({id:p.id,name:p.name,species:p.species,breed:p.breed,birthday:p.birthday,gender:p.gender,photoUrl:p.photo_url}));
+  pets=(pd||[]).map(p=>({id:p.id,name:p.name,species:p.species,breed:p.breed,birthday:p.birthday,gender:p.gender,photoUrl:p.photo_url,groupId:p.group_id||null}));
   events=(ed||[]).map(e=>({id:e.id,petId:e.pet_id,date:e.date,type:e.type,content:e.content,cost:e.cost,nextDueDate:e.next_due_date,weight:e.weight}));
 }
 
 /* ── Pet CRUD ── */
+
+
 function openPetModal(petId=null){
   editingPetId=petId;currentPhotoUrl=null;
   document.getElementById('petModalTitle').textContent=petId?'編輯寵物資料':'新增寵物';
+  const sharingRow=document.getElementById('petSharingRow');
+  sharingRow.style.display=currentGroup?'':'none';
   if(petId){
     const p=pets.find(p=>p.id===petId);
     document.getElementById('petName').value=p.name;
@@ -702,9 +819,11 @@ function openPetModal(petId=null){
     document.getElementById('petBirthday').value=p.birthday||'';
     document.getElementById('petGender').value=p.gender||'';
     currentPhotoUrl=p.photoUrl||null;
+    document.getElementById('petSharing').value=p.groupId?'group':'private';
   }else{
     ['petName','petSpecies','petBreed','petBirthday'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('petGender').value='';
+    document.getElementById('petSharing').value='private';
   }
   setPhotoPreview(currentPhotoUrl);
   document.getElementById('savePetBtn').textContent=petId?'更新':'儲存';
@@ -718,16 +837,18 @@ async function savePet(){
   if(!name){toast('請輸入寵物名稱','error');return;}
   const btn=document.getElementById('savePetBtn');
   btn.disabled=true;btn.textContent='儲存中…';
-  const payload={name,species:document.getElementById('petSpecies').value.trim()||null,breed:document.getElementById('petBreed').value.trim()||null,birthday:document.getElementById('petBirthday').value||null,gender:document.getElementById('petGender').value||null,photo_url:currentPhotoUrl||null,user_id:currentUser.id};
+  const sharingVal=document.getElementById('petSharing').value;
+  const group_id=(currentGroup&&sharingVal==='group')?currentGroup.id:null;
+  const payload={name,species:document.getElementById('petSpecies').value.trim()||null,breed:document.getElementById('petBreed').value.trim()||null,birthday:document.getElementById('petBirthday').value||null,gender:document.getElementById('petGender').value||null,photo_url:currentPhotoUrl||null,user_id:currentUser.id,group_id};
   if(editingPetId){
     const{error}=await sb.from('pets').update(payload).eq('id',editingPetId);
     if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
     const i=pets.findIndex(p=>p.id===editingPetId);
-    pets[i]={...pets[i],...payload,photoUrl:payload.photo_url};
+    pets[i]={...pets[i],...payload,photoUrl:payload.photo_url,groupId:group_id};
   }else{
     const{data:np,error}=await sb.from('pets').insert(payload).select().single();
     if(error){toast('新增失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
-    pets.push({id:np.id,name:np.name,species:np.species,breed:np.breed,birthday:np.birthday,gender:np.gender,photoUrl:np.photo_url});
+    pets.push({id:np.id,name:np.name,species:np.species,breed:np.breed,birthday:np.birthday,gender:np.gender,photoUrl:np.photo_url,groupId:np.group_id||null});
     currentPetId=np.id;
   }
   btn.disabled=false;btn.textContent='儲存';
@@ -781,16 +902,10 @@ function selectType(type){
 async function saveEvent(){
   const date=document.getElementById('eventDate').value;
   if(!date){toast('請選擇日期','error');return;}
-  if(selectedType==='weight'){
-    const wv=document.getElementById('eventWeight').value;
-    if(wv===''||wv===null){alert('請輸入體重');return;}
-    const wn=parseFloat(wv);
-    if(wn<=0){alert('體重必須大於 0');return;}
-    if(wn>999){alert('體重數值不正確，請確認單位');return;}
-  }
   const btn=document.getElementById('saveEventBtn');
   btn.disabled=true;btn.textContent='儲存中…';
-  const payload={pet_id:currentPetId,date,type:selectedType,content:document.getElementById('eventContent').value.trim()||null,cost:parseFloat(document.getElementById('eventCost').value)||null,next_due_date:document.getElementById('eventNextDue').value||null,weight:parseFloat(document.getElementById('eventWeight').value)||null,user_id:currentUser.id};
+  const _ePet=pets.find(p=>p.id===currentPetId);
+  const payload={pet_id:currentPetId,date,type:selectedType,content:document.getElementById('eventContent').value.trim()||null,cost:parseFloat(document.getElementById('eventCost').value)||null,next_due_date:document.getElementById('eventNextDue').value||null,weight:parseFloat(document.getElementById('eventWeight').value)||null,user_id:currentUser.id,group_id:_ePet?.groupId||null};
   if(editingEventId){
     const{error}=await sb.from('events').update(payload).eq('id',editingEventId);
     if(error){toast('儲存失敗：'+error.message,'error');btn.disabled=false;btn.textContent='儲存';return;}
@@ -862,6 +977,7 @@ function _renderPetProfile(pet,petEvs){
       `${pet.gender?`<span class="pet-badge">${gLabel[pet.gender]}</span>`:''} ` +
       `${pet.birthday?`<span class="pet-badge">📅 ${fmtDate(pet.birthday)}</span>`:''} ` +
       `<span class="pet-badge">📋 ${petEvs.length} 筆記錄</span>` +
+      `${pet.groupId?`<span class="pet-badge">👨‍👩‍👧 共享</span>`:''}` +
     `</div></div>` +
     `<div class="pet-actions">` +
       `<button class="btn-icon" onclick="openPetModal('${pet.id}')">✏️</button>` +
