@@ -730,10 +730,12 @@ async function createGroup(){
   if(!name){alert('請輸入群組名稱');return;}
   if(!currentUser){alert('請先登入');return;}
   try{
-    const{data:group,error:ge}=await sb.from('groups')
+    console.log('inserting group, user:', currentUser.id);
+    const result=await sb.from('groups')
       .insert({name,created_by:currentUser.id})
       .select().single();
-    console.log('group insert result:',group,ge);
+    console.log('insert result:',JSON.stringify(result));
+    const{data:group,error:ge}=result;
     if(ge){alert('建立失敗：'+ge.message);return;}
     const{error:me}=await sb.from('group_members')
       .insert({group_id:group.id,user_id:currentUser.id,role:'owner'});
@@ -1164,6 +1166,24 @@ if(_oauthError){
   history.replaceState(null,'',_cleanUrl);
 }
 
+let appInitialized=false;
+async function enterApp(user){
+  if(appInitialized)return;
+  appInitialized=true;
+  currentUser=user;
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('appScreen').style.display='block';
+  try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
+  try{await loadData();}catch(err){
+    console.error('[loadData 錯誤]',err?.message||err);
+    toast(err?.message||'資料載入失敗，請重新整理','error',5000);
+    const _mc=document.getElementById('mainContent');
+    if(_mc&&_mc.querySelector('.spinner'))_mc.innerHTML='<div class="empty-state"><div class="icon">⚠️</div><h3>載入失敗</h3><p>請重新整理頁面</p></div>';
+  }
+  if(pets.length)currentPetId=pets[0].id;
+  try{render();}catch(e){console.error('[render]',e);}
+}
+
 sb?.auth.onAuthStateChange(async(event,session)=>{
   if(event==='PASSWORD_RECOVERY'){
     document.getElementById('authScreen').style.display='flex';
@@ -1180,13 +1200,9 @@ sb?.auth.onAuthStateChange(async(event,session)=>{
       return;
     }
     // INITIAL_SESSION, SIGNED_IN
-    document.getElementById('authScreen').style.display='none';
-    document.getElementById('appScreen').style.display='block';
-    try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
-    try{await loadData();}catch(err){console.error('[loadData 錯誤]',err?.message||err);toast(err?.message||'資料載入失敗，請重新整理','error',5000);const _mc=document.getElementById('mainContent');if(_mc&&_mc.querySelector('.spinner'))_mc.innerHTML='<div class="empty-state"><div class="icon">⚠️</div><h3>載入失敗</h3><p>請重新整理頁面</p></div>';}
-    if(pets.length)currentPetId=pets[0].id;
-    try{render();}catch(e){console.error('[render]',e);}
+    await enterApp(session.user);
   }else{
+    appInitialized=false;
     currentUser=null;
     document.getElementById('authScreen').style.display='flex';
     document.getElementById('appScreen').style.display='none';
