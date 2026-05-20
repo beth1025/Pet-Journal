@@ -857,7 +857,6 @@ async function loadData(){
 
 /* ── Pet CRUD ── */
 
-
 function openPetModal(petId=null){
   editingPetId=petId;currentPhotoUrl=null;
   document.getElementById('petModalTitle').textContent=petId?'編輯寵物資料':'新增寵物';
@@ -943,6 +942,7 @@ function openEventModal(eventId=null){
   const _wInput=document.getElementById('eventWeight');
   _wInput.placeholder=weightUnit==='g'?'例：350':'例：3.5';
   _wInput.step=weightUnit==='g'?'1':'0.1';
+  _wInput.max=weightUnit==='g'?'99999':'999';
   document.getElementById('saveEventBtn').textContent=eventId?'更新':'儲存';
   document.getElementById('eventModalOverlay').classList.add('show');
   setTimeout(()=>document.getElementById('eventDate').focus(),80);
@@ -1028,28 +1028,17 @@ function renderTabs(){
     const tab=document.createElement('div');tab.className='pet-tab'+(p.id===currentPetId?' active':'');
     tab.onclick=()=>{currentPetId=p.id;filterType='all';render();};
     const av=document.createElement('div');av.className='pet-tab-avatar';
-    av.textContent=speciesEmoji(p.species);
+    if(p.photoUrl){const img=document.createElement('img');img.src=p.photoUrl;av.appendChild(img);}
+    else{av.textContent=speciesEmoji(p.species);}
     tab.appendChild(av);tab.appendChild(document.createTextNode(p.name));c.appendChild(tab);
   });
-  if(pets.some(p=>p.photoUrl)){
-    setTimeout(()=>{
-      pets.forEach((p,i)=>{
-        if(!p.photoUrl)return;
-        const av=c.children[i]?.querySelector('.pet-tab-avatar');
-        if(av){av.textContent='';const img=document.createElement('img');img.src=p.photoUrl;av.appendChild(img);}
-      });
-    },0);
-  }
 }
 
 function _renderPetProfile(pet,petEvs){
   const gLabel={male:'♂ 男生',female:'♀ 女生'};
-  const avId='_av_'+pet.id;
-  if(pet.photoUrl){
-    setTimeout(()=>{const el=document.getElementById(avId);if(el)el.innerHTML=`<img src="${pet.photoUrl}" alt="">`;},0);
-  }
+  const avContent=pet.photoUrl?`<img src="${pet.photoUrl}" alt="">`:speciesEmoji(pet.species);
   return `<div class="pet-profile">` +
-    `<div class="pet-avatar" id="${avId}">${speciesEmoji(pet.species)}</div>` +
+    `<div class="pet-avatar">${avContent}</div>` +
     `<div class="pet-info"><div class="pet-name">${esc(pet.name)}</div>` +
     `<div class="pet-sub">${esc(pet.species||'')}${pet.breed?` · ${esc(pet.breed)}`:''}</div>` +
     `<div class="pet-badges">` +
