@@ -1,0 +1,9 @@
+{
+  "name": "pet-journal",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@line/bot-sdk": "^9.4.2",
+    "@supabase/supabase-js": "^2.45.4"
+  }
+}
