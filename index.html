@@ -1036,7 +1036,7 @@ function renderTabs(){
 
 function _renderPetProfile(pet,petEvs){
   const gLabel={male:'♂ 男生',female:'♀ 女生'};
-  const avContent=pet.photoUrl?`<img src="${pet.photoUrl}" alt="">`:speciesEmoji(pet.species);
+  const avContent=pet.photoUrl?`<img src="${esc(pet.photoUrl)}" alt="">`:speciesEmoji(pet.species);
   return `<div class="pet-profile">` +
     `<div class="pet-avatar">${avContent}</div>` +
     `<div class="pet-info"><div class="pet-name">${esc(pet.name)}</div>` +
@@ -1120,8 +1120,8 @@ function renderMain(){
     return;
   }
   if(!currentPetId)currentPetId=pets[0].id;
-  const pet=pets.find(p=>p.id===currentPetId);
-  if(!pet){currentPetId=pets[0].id;return render();}
+  let pet=pets.find(p=>p.id===currentPetId);
+  if(!pet){currentPetId=pets[0].id;pet=pets[0];}
 
   const petEvs=events.filter(e=>e.petId===currentPetId);
   const filtered=filterType==='all'?petEvs:petEvs.filter(e=>e.type===filterType);
@@ -1195,6 +1195,7 @@ async function enterApp(user){
   document.getElementById('appScreen').style.display='block';
   try{updateUserDisplay();}catch(e){console.error('[updateUserDisplay]',e);}
   try{
+    await loadGroup();
     await loadData();
   }catch(err){
     console.error('[loadData 錯誤]',err?.message||err);
@@ -1204,10 +1205,6 @@ async function enterApp(user){
   }
   if(pets.length)currentPetId=pets[0].id;
   render();
-  // 背景載入群組資訊，不阻塞主流程
-  loadGroup().then(()=>{
-    if(currentGroup)loadData().then(()=>{if(pets.length&&!currentPetId)currentPetId=pets[0].id;render();}).catch(()=>{});
-  }).catch(()=>{});
 }
 
 sb?.auth.onAuthStateChange(async(event,session)=>{
