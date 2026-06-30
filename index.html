@@ -820,17 +820,26 @@ function copyInviteCode(){
 
 /* ── Data ── */
 async function loadGroup(){
+  console.log('[loadGroup] 開始，uid=',currentUser?.id);
+  let _gTimeoutId;
   try{
-    const{data:mem,error}=await sb.from('group_members')
+    const gTimeout=new Promise((_,rej)=>{_gTimeoutId=setTimeout(()=>rej(new Error('loadGroup 逾時：group_members 查詢超過 8 秒')),8000);});
+    const query=sb.from('group_members')
       .select('group_id,role,groups(id,name,invite_code,created_by,group_members(id))')
       .eq('user_id',currentUser.id).limit(1).maybeSingle();
+    console.log('[loadGroup] 送出查詢…');
+    const{data:mem,error}=await Promise.race([query,gTimeout]);
+    clearTimeout(_gTimeoutId);
+    console.log('[loadGroup] 查詢完成，error=',error,'mem=',mem);
     if(error||!mem){currentGroup=null;return;}
     const g=mem.groups;
     if(!g){currentGroup=null;return;}
     const memberCount=g.group_members?.length||0;
     currentGroup={id:g.id,name:g.name,invite_code:(g.invite_code||'').toUpperCase(),created_by:g.created_by,memberCount,myRole:mem.role};
+    console.log('[loadGroup] 成功，群組=',currentGroup.name);
   }catch(e){
-    console.warn('[loadGroup]',e);
+    clearTimeout(_gTimeoutId);
+    console.warn('[loadGroup] 錯誤或逾時：',e?.message||e);
     currentGroup=null;
   }
 }
@@ -839,6 +848,7 @@ async function loadData(){
   if(!currentUser)throw new Error('currentUser 為 null');
   if(!sb)throw new Error('Supabase client 未初始化');
   const uid=currentUser.id;
+  console.log('[loadData] 開始，uid=',uid,'group=',currentGroup?.id||'無');
   let _timeoutId;
   const timeout=new Promise((_,rej)=>{_timeoutId=setTimeout(()=>rej(new Error('網路逾時，請重新整理頁面')),8000);});
   const pFields='id,name,species,breed,birthday,gender,photo_url,group_id,user_id';
@@ -852,12 +862,19 @@ async function loadData(){
     pQ=pQ.eq('user_id',uid);
     eQ=eQ.eq('user_id',uid);
   }
-  const result=await Promise.race([Promise.all([pQ,eQ]),timeout]);
-  clearTimeout(_timeoutId);
+  console.log('[loadData] 送出 pets+events 查詢…');
+  let result;
+  try{
+    result=await Promise.race([Promise.all([pQ,eQ]),timeout]);
+  }finally{
+    clearTimeout(_timeoutId);
+  }
   const[{data:pd,error:pe},{data:ed,error:ee}]=result;
+  console.log('[loadData] 查詢完成，pets=',pd?.length,'events=',ed?.length,'pe=',pe,'ee=',ee);
   if(pe||ee)throw new Error((pe||ee).message||'資料庫查詢失敗');
   pets=(pd||[]).map(p=>({id:p.id,name:p.name,species:p.species,breed:p.breed,birthday:p.birthday,gender:p.gender,photoUrl:p.photo_url,groupId:p.group_id||null}));
   events=(ed||[]).map(e=>({id:e.id,petId:e.pet_id,date:e.date,type:e.type,content:e.content,cost:e.cost,nextDueDate:e.next_due_date,weight:e.weight}));
+  console.log('[loadData] 完成，pets=',pets.length,'events=',events.length);
 }
 
 /* ── Pet CRUD ── */
